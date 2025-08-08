@@ -11,24 +11,32 @@ from itertools import combinations_with_replacement
 
 # random points on unit 9-sphere corresponds to sample points in CP^4.
 # Hence we generate random points on S9 via following function.
+
 def sample_point_C5_on_unit_sphere():
-    z0 = np.random.randn() + 1j * np.random.randn()
-    z1 = np.random.randn() + 1j * np.random.randn()
-    z2 = np.random.randn() + 1j * np.random.randn()
-    z3 = np.random.randn() + 1j * np.random.randn()
-    z4 = np.random.randn() + 1j * np.random.randn()
-    z = np.array([z0, z1, z2, z3, z4])
-    z = z/np.linalg.norm(z)
-    return z
 
-''' SADLY THIS IS WRONG, I forgot to take the phase out, so I need to find a way to 
-take the phase out, CP^4 = S9/U(1)'''
+    v = np.random.randn(5) + 1j*np.random.randn(5)
+    v = v / np.linalg.norm(v)
+    return v
 
+v = sample_point_C5_on_unit_sphere()
+
+print(float(np.linalg.norm(v))) # just checking if answer indeed gives me 1.
+
+# Now need to project this point into CP^4 by removing the phase, ie: find a way such that both v and e^itheta
+# end up mapping to the same coordinate. And one can do it by just multiplying v by the negative of the argument of the
+# complex number of any one component. Ie:
+
+def projected_S9_point_onto_coord_of_CP4(v):
+    w = np.exp(- 1j * np.angle(v[4]))*v
+    return w
 
 # Now we use the two random points on S9 to define a line in CP^4 intersecting X, Ie: following the polynomial equation.
 def find_quintic_roots():
-    p = sample_point_C5_on_unit_sphere()
-    q = sample_point_C5_on_unit_sphere()
+    v1 = sample_point_C5_on_unit_sphere()
+    v2 = sample_point_C5_on_unit_sphere()
+    p = projected_S9_point_onto_coord_of_CP4(v1)
+    q = projected_S9_point_onto_coord_of_CP4(v2)
+
 
     polynomial = np.zeros(6, dtype=complex)  # Vector each containing a term in the expansion of the polynomial
     # cause np.roots works with vectors only. 
@@ -509,66 +517,4 @@ T_map = T_map_function()
 h_new = np.transpose(np.linalg.inv(T_map))
 
 print(h_new.shape)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
