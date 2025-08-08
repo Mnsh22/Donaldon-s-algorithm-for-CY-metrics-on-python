@@ -21,6 +21,10 @@ def sample_point_C5_on_unit_sphere():
     z = z/np.linalg.norm(z)
     return z
 
+''' SADLY THIS IS WRONG, I forgot to take the phase out, so I need to find a way to 
+take the phase out, CP^4 = S9/U(1)'''
+
+
 # Now we use the two random points on S9 to define a line in CP^4 intersecting X, Ie: following the polynomial equation.
 def find_quintic_roots():
     p = sample_point_C5_on_unit_sphere()
