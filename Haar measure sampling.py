@@ -27,7 +27,7 @@ print(float(np.linalg.norm(v))) # just checking if answer indeed gives me 1.
 # complex number of any one component. Ie:
 
 def projected_S9_point_onto_coord_of_CP4(v):
-    w = np.exp(- 1j * np.angle(v[4]))*v
+    w = np.exp(- 1j * np.angle(v[4])) * v
     return w
 
 # Now we use the two random points on S9 to define a line in CP^4 intersecting X, Ie: following the polynomial equation.

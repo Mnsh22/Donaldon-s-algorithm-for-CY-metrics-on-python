@@ -20,7 +20,7 @@ def sample_point_C5_on_unit_sphere():
 
 v = sample_point_C5_on_unit_sphere()
 
-print(float(np.linalg.norm(v))) # just checking if answer indeed gives me 1.
+print(np.linalg.norm(v)) # just checking if answer indeed gives me 1.
 
 # Now need to project this point into CP^4 by removing the phase, ie: find a way such that both v and e^itheta
 # end up mapping to the same coordinate. And one can do it by just multiplying v by the negative of the argument of the
@@ -64,9 +64,9 @@ for i, t in enumerate(roots):
     # didn't understand. However it worked. So if it isn't broken, don't fix it :).
 
 # Now we need to repeat the process n-times n=p_M times.
-def generate_quintic_points(p_M_points):
+def generate_quintic_points():
     points = []
-
+    p_M_points = 5000 ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
     while len(points) < p_M_points:
         roots, p, q = find_quintic_roots()
 
@@ -87,10 +87,10 @@ def generate_quintic_points(p_M_points):
 
     return np.array(points)  # shape: (n_points, 5)
 
-sample = generate_quintic_points(5000) ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
+sample = generate_quintic_points()
 
 #print("Shape:", sample.shape)  # (1000, 5)
-#print("Sample point:", sample[0]) #I am just checking if it's working alright
+print("Sample point:", sample[0]) #I am just checking if it's working alright
 
 # samples therefore contains all the p_M generated points. Hence we can finally start constructing the T-Map
 
@@ -150,9 +150,9 @@ fixed = coordinates_picking(sample)
 
 
 # Following function will set one of the coordinates of the array to 1 according to the function we defined above.
-def coordinates_fixing(sample, fixed):
+def coordinates_fixing(sample):
 
-    for i in range(len(fixed)): # useful trick to assign no 1 to length in order for the list
+    for i in range(len(sample)): # useful trick to assign no 1 to length in order for the list
         b=coordinates_picking(sample)[i] # b is the associated element for the i'th component of the list.
         sample[i][b] = 1 # sample[i] is the i'th element (= array) of the sample list since they match lengths and order
         # anyways and so sample[i][b] is the b'th element in the array.
@@ -160,7 +160,7 @@ def coordinates_fixing(sample, fixed):
     return sample #really important cause this tells us that such change is stored in the sample, so when calling such
     # function the sample list in this fn has already the 1's substituted into it.
 
-coord_fix_fn = coordinates_fixing(sample, fixed) # Need to do it if we wanna define a fn in terms of it.
+coord_fix_fn = coordinates_fixing(sample) # Need to do it if we wanna define a fn in terms of it.
 
 #print(coordinates_fixing(sample)) # just checking if it's right
 #print("Count:", len(coordinates_fixing(sample)), "\n") # again just a check
@@ -233,7 +233,7 @@ def extra_coordinates_fixing(coord_fix_fn, extras):
     for i in range(len(extras)):
 
         b = extras[i]
-        not_b_indices = [k for k in range(0,4) if k != b] # just like before but != means not equal so make a list of
+        not_b_indices = [k for k in range(5) if k != b] # just like before but != means not equal so make a list of
         # numbers that are not the b index
         s = sum( coord_fix_fn[i][k]**5 for k in not_b_indices ) # NB: Need to equal this to a number or Int problem
         coord_fix_fn[i][b] = (-s)**(1/5)
@@ -257,7 +257,7 @@ def z_J_container(extras, coord_fix_fn):
 
     for i in range(len(extras)):
         b = extras[i]
-        not_b_indices = [k for k in range(0, 4) if k != b]
+        not_b_indices = [k for k in range(5) if k != b]
         s = sum(coord_fix_fn[i][k] ** 5 for k in not_b_indices)
         coord_fix_fn[i][b] = (-s) ** (1 / 5)
         z_J_for_T_map = (coord_fix_fn[i][b]) #gonna list straightaway the norm to the 8 since is what we need
@@ -340,9 +340,9 @@ def metric_builder(fixed):
                                               +z[3]*np.conj(z[3])+z[4]*np.conj(z[4]))**2))
 
                 else:
-                    g[i][j] = (-(1/np.pi)) * ((z[j]*np.conj(z[i]))/(z[0]*np.conj(z[0])+z[1]*np.conj(z[1])
+                    g[i][j] = (-(1/np.pi)) * ((z[j]*np.conj(z[i]))/((z[0]*np.conj(z[0])+z[1]*np.conj(z[1])
                                                                       +z[2]*np.conj(z[2])+z[3]*np.conj(z[3])
-                                                                      +z[4]*np.conj(z[4])))
+                                                                      +z[4]*np.conj(z[4])))**2)
 
         container_of_metrics.append(g)
 
@@ -405,6 +405,8 @@ every_single_monomial_combination_tuple = Monomial_list_coord_value()
 
 n = 5  # number of coordinates we are considering
 k = 2  # order polynomial we are considering
+
+#def N_k_builder():
 N_k = math.comb(n + k - 1, k)
 
 print(N_k)
@@ -415,20 +417,20 @@ print(N_k)
 # Now we need to add a code that creates the T-map. We divide the labour in two factors. First one Being N_k/Vol_CY and
 # the second factor containing the sum over the matrix constructed by the monomials times the weight
 # First factor given by:
-def first_factor_denominator_sum():
+def first_factor(N_k):
 
     factor = 0
     # Just like above here pick the desired N_k value over which the T-map should operate.
     for i in range(len(sample)):
         factor = factor + 1/(25 * (abs(container[i]) ** 8) * (determinant_list[i]))
+    Vol_CY = (1/len(sample)) * factor
+    first_fact = (N_k)/(Vol_CY)
 
-    return factor
+    return first_fact
 
-error_V_CY = first_factor_denominator_sum()
-#print(error_V_CY)
+ff = first_factor(N_k)
 
-first_factor = (N_k / (( 1/len(sample) ) * error_V_CY))
-#print(first_factor)
+
 
 
 
@@ -466,17 +468,17 @@ sfm = second_factor_matrix()
 
 
 
-def second_factor_weight_and_denom():
+def second_factor_weight_and_num():
 
     selection_iteration_term = []
 
     for i in range(len(sample)):
-        term = (25 * (abs(container[i]) ** 8) * (determinant_list[i])) * sfm[i]
+        term = (1/(25 * (abs(container[i]) ** 8) * (determinant_list[i]))) * sfm[i]
         selection_iteration_term.append(term)
 
     return selection_iteration_term
 
-sfwad = second_factor_weight_and_denom()
+sfwad = second_factor_weight_and_num()
 
 #print(second_factor_weight_and_denom())
 
@@ -491,7 +493,7 @@ def sum_over_h_second_factor():
     h = np.eye(N_k, dtype=complex)
 
     for i in range(len(sample)):
-        factor = factor + (sfm[i]/(np.einsum("mn,mn",h,sfm[i])))
+        factor = factor + (1/(np.einsum("mn,mn",h,sfm[i]))) * sfwad[i]
 
     return factor
 
@@ -503,12 +505,12 @@ sohsf = sum_over_h_second_factor()
 
 def T_map_function():
 
-    T_map = first_factor * sohsf
+    T_map = ff * sohsf
     factor = 0
     for _ in range(10): # Input here how many times to iterate the T_map
         for i in range(len(sample)):
-            factor = factor + first_factor * (sfm[i] /(np.einsum("mn,mn",T_map,sfm[i])))
-        T_map = first_factor * factor
+            factor = factor + ff * (1 /(np.einsum("mn,mn",T_map,sfm[i]))) * sfwad[i]
+        T_map = ff * factor
     return T_map
 
 T_map = T_map_function()
@@ -540,7 +542,7 @@ print(h_new.shape)
 # k = 5
 # Iteration times = 10
 
-N_t = 4500
+N_t = 4000
 
 def error_vol_CY(N_t, container, determinant_list):
 
@@ -562,10 +564,9 @@ def error_vol_K(determinant_list, container):
     factor = 0
     for i in range(N_t):
 
-        factor = factor + (-1j/8)*(determinant_list[i]/(25*(abs(container[i]) ** 8)))*(1 / (25 *
-                    (abs(container[i]) ** 8) * (determinant_list[i])))
+        factor = factor + ((determinant_list[i])/(1/(25*((container[i])**8))))*(1/(25 * (abs(container[i]) ** 8) * (determinant_list[i])))
 
-    evk = (1/N_t)*factor
+    evk = (1/N_t)*(-1j/8)*factor
 
     return evk
 
@@ -574,13 +575,12 @@ EVK = error_vol_K(determinant_list, container)
 def sigma_measure_error(determinant_list, container, EVCY):
     factor = 0
     for i in range(N_t):
-        factor = factor + (abs( 1 - ((-1j/8)*(determinant_list[i]/EVK)/(abs(container[i]) ** 8)/EVCY))) * 1/(25 *
-                                            (abs(container[i]) ** 8) * (determinant_list[i]))
+        factor = factor + (abs( 1 - (-1j/8)*(determinant_list[i]/EVK)/((1/(25*(abs(container[i])**8)))/EVCY)))*(1/(25 * (abs(container[i]) ** 8) * (determinant_list[i])))
 
     sigma = (1/(N_t*EVCY)) * factor
 
     return sigma
 
 sigma = sigma_measure_error(determinant_list, container, EVCY)
+print(abs(sigma)*100)
 
-print(sigma)
