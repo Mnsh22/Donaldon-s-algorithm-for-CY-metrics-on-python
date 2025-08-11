@@ -66,7 +66,7 @@ for i, t in enumerate(roots):
 # Now we need to repeat the process n-times n=p_M times.
 def generate_quintic_points():
     points = []
-    p_M_points = 52250 ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
+    p_M_points = 10 ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
     while len(points) < p_M_points:
         roots, p, q = find_quintic_roots()
 
@@ -77,7 +77,7 @@ def generate_quintic_points():
 
             # Optional: check that Q(z) ≈ 0, condition to break the code if not accurate enough
             Qz = np.sum(z ** 5)
-            if np.abs(Qz) >= 1e-15:  # threshold
+            if np.abs(Qz) <= 1e-20:  # threshold
                continue
 
             points.append(z)
@@ -501,12 +501,12 @@ sfwad = second_factor_weight_and_num()
 def sum_over_h_second_factor():
 
     factor = np.zeros((N_k,N_k), dtype = complex)
-    #h = np.zeros((N_k,N_k), dtype=complex)
-    h = np.array([[1, 1j, -1, -1j, 0],
-                        [-1j, 1, 1j, -1, 0],
-                        [-1, -1j, 1, 1j, 0],
-                        [1j, -1, -1j, 1, 0],
-                        [0, 0, 0, 0, 1]], dtype=complex)
+    h = np.eye(N_k, dtype=complex)
+    #h = np.array([[1, 1j, -1, -1j, 0],
+                        #[-1j, 1, 1j, -1, 0],
+                       # [-1, -1j, 1, 1j, 0],
+                        #[1j, -1, -1j, 1, 0],
+                       # [0, 0, 0, 0, 1]], dtype=complex)
 
 
     for i in range(len(sample)):
@@ -524,7 +524,7 @@ def T_map_function():
 
     T_map = ff * sohsf
     factor = 0
-    for _ in range(20): # Input here how many times to iterate the T_map
+    for _ in range(1): # Input here how many times to iterate the T_map
         for i in range(len(sample)):
             factor = factor + ff * (1 /(np.einsum("mn,mn",T_map,sfm[i]))) * sfwad[i]
         T_map = ff * factor
@@ -559,7 +559,7 @@ h_new = np.transpose(np.linalg.inv(T_map))
 # k = 1
 # Iteration times = 20
 
-N_t = 50000
+N_t = 2
 
 def error_vol_CY(N_t, container, determinant_list):
 
@@ -628,7 +628,7 @@ def K_i_builder():   # NBBBBBB found a way of storing s_alphas as a list of vect
             # cause y a tuple and not int
             aid_list.append(prod)
 
-        for r in range(N_k):
+        for r in range(N_k): # this is supposed to be s_alpha vectors
             A[r] = aid_list[r]
 
         helping_list.append(A)
@@ -650,7 +650,7 @@ def metric_list():
 
     metric_list = []
 
-    for i in range(N_t):
+    for i in range(N_t): # from notes ML 4CY
         g = (1/np.pi)* (K_0_list[i] * K_ijbar_list[i] - ((K_0_list[i])** 2) * np.outer(K_i_list[i], np.matrix.conj(K_i_list[i])))
 
         metric_list.append(g)
@@ -685,6 +685,7 @@ def error_Vol_K():
     factor = 0
     for i in range(N_t):
         factor = factor + (1j/8) * (det_metroboomin_list[i] / (OmOmbar_list[i])) * w_M_list[i]
+        print(factor)
     evk = (1/N_t) * factor
     return evk
 
