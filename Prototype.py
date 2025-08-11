@@ -20,7 +20,7 @@ def sample_point_C5_on_unit_sphere():
 
 v = sample_point_C5_on_unit_sphere()
 
-print(np.linalg.norm(v)) # just checking if answer indeed gives me 1.
+#print(np.linalg.norm(v)) # just checking if answer indeed gives me 1.
 
 # Now need to project this point into CP^4 by removing the phase, ie: find a way such that both v and e^itheta
 # end up mapping to the same coordinate. And one can do it by just multiplying v by the negative of the argument of the
@@ -66,7 +66,7 @@ for i, t in enumerate(roots):
 # Now we need to repeat the process n-times n=p_M times.
 def generate_quintic_points():
     points = []
-    p_M_points = 18000 ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
+    p_M_points = 1000 ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
     while len(points) < p_M_points:
         roots, p, q = find_quintic_roots()
 
@@ -243,7 +243,7 @@ def extra_coordinates_fixing(coord_fix_fn, extras):
 #print(extra_coordinates_fixing(coord_fix_fn))
 
 coordinates_for_every_p_M = extra_coordinates_fixing(coord_fix_fn, extras)
-#print(coordinates_for_every_p_M[1], coordinates_for_every_p_M[998])
+print(coordinates_for_every_p_M[1], coordinates_for_every_p_M[998])
 
 # Seems to work, by checking print(coord_fixing(sample)) and print(extras) the only no that should change from the first
 # of the two print should be the component given by print(extras), and it matches, so should be right.
@@ -346,7 +346,7 @@ def metric_builder(fixed):
 
 metrics_at_each_p_M = metric_builder(fixed)
 
-print(metrics_at_each_p_M[1], metrics_at_each_p_M[998])
+#print(metrics_at_each_p_M[1], metrics_at_each_p_M[998])
 
 
 
@@ -391,21 +391,22 @@ def Monomial_list_coord_value():
     for i in range(len(sample)):
         x = coordinates_for_every_p_M[i]
         variables = [x[0],x[1],x[2],x[3],x[4]]
-        combo = combinations_with_replacement(variables, 5) ### INPUT DEGREE OF COMBINATION YOU WANNA FIND !!!!!
+        combo = combinations_with_replacement(variables, 1) ### INPUT DEGREE OF COMBINATION YOU WANNA FIND !!!!!
         gh = list(combo)
         Monomial_list.append(gh)
 
     return Monomial_list
 
 every_single_monomial_combination_tuple = Monomial_list_coord_value()
+#print(every_single_monomial_combination_tuple[2])
 
 n = 5  # number of coordinates we are considering
-k = 5  # order polynomial we are considering
+k = 1  # order polynomial we are considering
 
 #def N_k_builder():
-N_k = math.comb(n + k - 1, k)
+N_k = math.comb(n + k - 1, k) #we looking at k less than 5 anyways, remember that for k>5 need to remove dof
 
-print(N_k)
+#print(N_k)
 
 
 
@@ -438,27 +439,30 @@ ff = first_factor(N_k)
 def second_factor_matrix():
 
     section_matrix_list = []
-    aid_list = []
-
-    A = np.zeros((N_k,N_k), dtype=complex)
 
     for i in range(len(sample)):
+        aid_list = []
         x = every_single_monomial_combination_tuple[i]
+        A = np.zeros((N_k, N_k), dtype=complex)
         for j in range(N_k):
-            y = x[j]
-            prod = y[0]*y[1]*y[2]*y[3]*y[4]
+            y = list(x[j])
+            prod = y[0] #*y[1] if k=2. *y[1]*y[2] if k=3 and so on. Note that this is even for k=1
+            # cause y a tuple and not int
             aid_list.append(prod)
+
+
 
         for r in range(N_k):
             for v in range(N_k):
                 A[r][v] = aid_list[r] * np.conj(aid_list[v]) # section v * section r element in matrix.
-                section_matrix_list.append(A)
+
+        section_matrix_list.append(A)
 
     return section_matrix_list
 
 sfm = second_factor_matrix()
-
-#print(sfm[0])
+#print(len(sfm))
+#print(sfm[0] - sfm[1])
 #print(sfm[0].shape)
 
 
@@ -538,7 +542,7 @@ print(h_new.shape)
 # k = 5
 # Iteration times = 10
 
-N_t = 15000
+N_t = 500
 
 def error_vol_CY(N_t, container, determinant_list):
 
@@ -580,3 +584,16 @@ def sigma_measure_error(determinant_list, container, EVCY):
 sigma = sigma_measure_error(determinant_list, container, EVCY)
 print(abs(sigma)*100)
 
+# For k = 1
+'''
+def error_Kahler_potential_0():
+   factor = 0
+   for i in range(N_k):
+       factor = factor + np.einsum("mn,mn", h_new,sfm[i])
+       
+'''
+
+variables = [1,2,3,4,5]
+combo = combinations_with_replacement(variables, 1) ### INPUT DEGREE OF COMBINATION YOU WANNA FIND !!!!!
+gh = list(combo)
+print(gh)
