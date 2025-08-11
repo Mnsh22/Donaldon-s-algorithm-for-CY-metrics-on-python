@@ -455,6 +455,7 @@ def second_factor_matrix():
         for r in range(N_k):
             for v in range(N_k):
                 A[r][v] = aid_list[r] * np.conj(aid_list[v]) # section v * section r element in matrix.
+                # s_alpha s_betabar matrix
 
         section_matrix_list.append(A)
 
@@ -479,7 +480,7 @@ def second_factor_weight_and_num():
     return selection_iteration_term
 
 sfwad = second_factor_weight_and_num()
-
+#print(sfwad[1]-sfwad[0])
 #print(second_factor_weight_and_denom())
 
 
@@ -521,7 +522,7 @@ T_map = T_map_function()
 
 h_new = np.transpose(np.linalg.inv(T_map))
 
-print(h_new.shape)
+#print(h_new.shape)
 
 
 
@@ -559,41 +560,80 @@ EVCY = error_vol_CY(N_t, container, determinant_list)
 #print(EVCY)
 
 
-def error_vol_K(determinant_list, container):
 
-    factor = 0
+# NOTE THIS IS JUST FOR k = 1. NEED TO FIND A WAY TO GENERALISE ON MATEMATICA FOR AT LEAST k=2 TOO.
+# My idea is for now to build a code that would be good enough so that people can just change what can be calculated
+# analytically. The idea is that to compute the metric g, one needs information about derivatives of polynomial.
+# For k less 2 one can do them by hand, but more is jarring so still need to find a way.
+
+I = np.eye(5, dtype= complex) # compute a matrix for d_i s_alpha and in this case since d_jbar s_betabar
+# is the same then dw
+
+def K_ij_builder():
+    K_ij_list = []
+
     for i in range(N_t):
+        k_ijbar = np.einsum('ia,ab,bj -> ij', I,h_new,I)
+        K_ij_list.append(k_ijbar)
+    return K_ij_list
 
-        factor = factor + ((determinant_list[i])/(1/(25*((container[i])**8))))*(1/(25 * (abs(container[i]) ** 8) * (determinant_list[i])))
+K_ijbar_list = K_ij_builder()
 
-    evk = (1/N_t) * (-1j/8) * factor
-
-    return evk
-
-EVK = error_vol_K(determinant_list, container)
-
-def sigma_measure_error(determinant_list, container, EVCY):
-    factor = 0
+def K_0_builder():
+    k_0_list = []
     for i in range(N_t):
-        factor = factor + (abs( 1 - (-1j/8)*(determinant_list[i]/EVK)/((1/(25*(abs(container[i])**8)))/EVCY)))*(1/(25 * (abs(container[i]) ** 8) * (determinant_list[i])))
+        k_0 = 1 / ( np.einsum("mn,mn", h_new, sfm[i]) )
+        k_0_list.append(k_0)
+    return k_0_list
 
-    sigma = (1/(N_t*EVCY)) * factor
+K_0_list = K_0_builder()
 
-    return sigma
 
-sigma = sigma_measure_error(determinant_list, container, EVCY)
-print(abs(sigma)*100)
+def K_i_builder()   # NBBBBBB found a way of storing s_alphas as a list of vectors really useful to generalise
+    k_i_list = []
+    helping_list = []
+    for i in range(N_t):
+        aid_list = []
+        x = every_single_monomial_combination_tuple[i]
+        A = np.zeros(N_k, dtype=complex)
 
-# For k = 1
-'''
-def error_Kahler_potential_0():
-   factor = 0
-   for i in range(N_k):
-       factor = factor + np.einsum("mn,mn", h_new,sfm[i])
-       
-'''
+        for j in range(N_k):
+            y = list(x[j])
+            prod = y[0] #*y[1] if k=2. *y[1]*y[2] if k=3 and so on. Note that this is even for k=1
+            # cause y a tuple and not int
+            aid_list.append(prod)
 
-variables = [1,2,3,4,5]
-combo = combinations_with_replacement(variables, 1) ### INPUT DEGREE OF COMBINATION YOU WANNA FIND !!!!!
-gh = list(combo)
-print(gh)
+        for r in range(N_k):
+            A[r] = aid_list[r]
+
+        helping_list.append(A)
+
+    for f in range(N_t):
+        k_i = np.einsum('ij,jk,k->i', h_new, I, helping_list[f])
+
+        k_i_list.append(k_i)
+
+    return k_i_list
+
+K_i_list = K_i_builder()
+
+#print(K_i_list[3].shape)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
