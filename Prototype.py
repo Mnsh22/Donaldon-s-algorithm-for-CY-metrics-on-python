@@ -243,7 +243,7 @@ def extra_coordinates_fixing(coord_fix_fn, extras):
 #print(extra_coordinates_fixing(coord_fix_fn))
 
 coordinates_for_every_p_M = extra_coordinates_fixing(coord_fix_fn, extras)
-print(coordinates_for_every_p_M[1], coordinates_for_every_p_M[998])
+#print(coordinates_for_every_p_M[1], coordinates_for_every_p_M[998])
 
 # Seems to work, by checking print(coord_fixing(sample)) and print(extras) the only no that should change from the first
 # of the two print should be the component given by print(extras), and it matches, so should be right.
@@ -557,7 +557,7 @@ def error_vol_CY(N_t, container, determinant_list):
     return Evcy
 
 EVCY = error_vol_CY(N_t, container, determinant_list)
-#print(EVCY)
+print(EVCY)
 
 
 
@@ -636,8 +636,47 @@ metroboomin = metric_list()
 
 #print(metroboomin[2]-metroboomin[499])
 
+def actual_determinant_builder():
+
+    determinant_pullback_list = []
+
+    for i in range(N_t):
+        g = metroboomin[i]
+        J = Jack[i]
+        Jt = np.transpose(J)
+        Jtbar = np.conjugate(Jt)
+
+        pullback = 1j * J @ g @ Jtbar
+
+        det = np.linalg.det(pullback)
+
+        determinant_pullback_list.append(det)
+
+    return determinant_pullback_list
+
+det_metroboomin_list = actual_determinant_builder()
+
+def error_Vol_K():
+    factor = 0
+    for i in range(N_t):
+        factor = factor + (1j/8) * (det_metroboomin_list[i]/(1/(25*(container[i]**8))))*(1/(25 * (abs(container[i]) ** 8) * (determinant_list[i])))
+    evk = (1/N_t) * factor
+    return evk
+
+EVK = error_Vol_K()
 
 
+def sigma_builder():
+    factor = 0
+    for i in range(N_t):
+        factor + abs(1-(1j/8)*(determinant_list[i]/EVK)/((1/(25*(container[i]**8))))/EVCY)*(1/(25 * (abs(container[i]) ** 8) * (determinant_list[i])))
+    sigma = (1/(N_t*EVCY))*factor
+    print(sigma)
+    return sigma
+
+sigma = sigma_builder()
+
+print(sigma)
 
 
 
