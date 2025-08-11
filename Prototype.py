@@ -66,7 +66,7 @@ for i, t in enumerate(roots):
 # Now we need to repeat the process n-times n=p_M times.
 def generate_quintic_points():
     points = []
-    p_M_points = 1000 ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
+    p_M_points = 52250 ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
     while len(points) < p_M_points:
         roots, p, q = find_quintic_roots()
 
@@ -508,7 +508,7 @@ def T_map_function():
 
     T_map = ff * sohsf
     factor = 0
-    for _ in range(10): # Input here how many times to iterate the T_map
+    for _ in range(20): # Input here how many times to iterate the T_map
         for i in range(len(sample)):
             factor = factor + ff * (1 /(np.einsum("mn,mn",T_map,sfm[i]))) * sfwad[i]
         T_map = ff * factor
@@ -540,10 +540,10 @@ h_new = np.transpose(np.linalg.inv(T_map))
 
 # STEP 3: Calculate the error in the code. It's nice to have a nice recap of the variables we have.
 # Np = 1000
-# k = 5
-# Iteration times = 10
+# k = 1
+# Iteration times = 20
 
-N_t = 500
+N_t = 50000
 
 def error_vol_CY(N_t, container, determinant_list):
 
@@ -557,7 +557,7 @@ def error_vol_CY(N_t, container, determinant_list):
     return Evcy
 
 EVCY = error_vol_CY(N_t, container, determinant_list)
-print(EVCY)
+#print(EVCY)
 
 
 
@@ -669,9 +669,9 @@ EVK = error_Vol_K()
 def sigma_builder():
     factor = 0
     for i in range(N_t):
-        factor + abs(1-(1j/8)*(determinant_list[i]/EVK)/((1/(25*(container[i]**8))))/EVCY)*(1/(25 * (abs(container[i]) ** 8) * (determinant_list[i])))
+        factor = factor + abs(1-((det_metroboomin_list[i]/EVK)/((1/(25*(container[i]**8)))/EVCY)))*(1/(25 * (abs(container[i]) ** 8) * (determinant_list[i])))
+        #print(factor)
     sigma = (1/(N_t*EVCY))*factor
-    print(sigma)
     return sigma
 
 sigma = sigma_builder()
