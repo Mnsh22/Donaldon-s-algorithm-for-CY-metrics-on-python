@@ -688,7 +688,7 @@ EVK = error_Vol_K()
 def sigma_builder():
     factor = 0
     for i in range(N_t):
-        factor = factor + abs(1-((det_metroboomin_list[i]/EVK)/((OmOmbar_list[i])/EVCY))) * w_M_list[i]
+        factor = factor + abs(1-(((1j/8))*(det_metroboomin_list[i]/EVK)/((OmOmbar_list[i])/EVCY))) * w_M_list[i]
         #print(factor)
     sigma = (1/(N_t*EVCY))*factor
     return sigma
