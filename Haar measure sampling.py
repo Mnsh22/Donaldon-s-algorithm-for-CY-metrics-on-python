@@ -39,7 +39,7 @@ def find_quintic_roots():
 
 
     polynomial = np.zeros(6, dtype=complex)  # Vector each containing a term in the expansion of the polynomial
-    # cause np.roots works with vectors only. 
+    # cause np.roots works with vectors only.
 
     for i in range(5):
         for k in range(6):
@@ -87,15 +87,12 @@ def generate_quintic_points(p_M_points):
 
     return np.array(points)  # shape: (n_points, 5)
 
-sample = generate_quintic_points(5000) ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
+sample = generate_quintic_points(1000) ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
 
 #print("Shape:", sample.shape)  # (1000, 5)
 #print("Sample point:", sample[0]) #I am just checking if it's working alright
 
 # samples therefore contains all the p_M generated points. Hence we can finally start constructing the T-Map
-
-
-
 
 
 
@@ -150,7 +147,7 @@ fixed = coordinates_picking(sample)
 
 
 # Following function will set one of the coordinates of the array to 1 according to the function we defined above.
-def coordinates_fixing(sample, fixed):
+def coordinates_fixing(sample):
 
     for i in range(len(fixed)): # useful trick to assign no 1 to length in order for the list
         b=coordinates_picking(sample)[i] # b is the associated element for the i'th component of the list.
@@ -160,7 +157,7 @@ def coordinates_fixing(sample, fixed):
     return sample #really important cause this tells us that such change is stored in the sample, so when calling such
     # function the sample list in this fn has already the 1's substituted into it.
 
-coord_fix_fn = coordinates_fixing(sample, fixed) # Need to do it if we wanna define a fn in terms of it.
+coord_fix_fn = coordinates_fixing(sample) # Need to do it if we wanna define a fn in terms of it.
 
 #print(coordinates_fixing(sample)) # just checking if it's right
 #print("Count:", len(coordinates_fixing(sample)), "\n") # again just a check
@@ -228,7 +225,7 @@ extras = extra_coordinate_picking(coord_fix_fn)
 
 
 # That was way more painful that it looked. Anyways now we can build the coordinates fixer.
-def extra_coordinates_fixing(coord_fix_fn, extras):
+def extra_coordinates_fixing(coord_fix_fn):
 
     for i in range(len(extras)):
 
@@ -242,7 +239,7 @@ def extra_coordinates_fixing(coord_fix_fn, extras):
 
 #print(extra_coordinates_fixing(coord_fix_fn))
 
-coordinates_for_every_p_M = extra_coordinates_fixing(coord_fix_fn, extras)
+coordinates_for_every_p_M = extra_coordinates_fixing(coord_fix_fn)
 
 # Seems to work, by checking print(coord_fixing(sample)) and print(extras) the only no that should change from the first
 # of the two print should be the component given by print(extras), and it matches, so should be right.
@@ -251,7 +248,7 @@ coordinates_for_every_p_M = extra_coordinates_fixing(coord_fix_fn, extras)
 # Also nice cause we now can make a list also of all z_J easily just in case for the T-Map,
 # just store coord_fix_fn[i][b] into a list and gg.
 
-def z_J_container(extras, coord_fix_fn):
+def z_J_container():
 
     list_of_z_J = []
 
@@ -270,7 +267,7 @@ def z_J_container(extras, coord_fix_fn):
 
     return list_of_z_J
 
-container = z_J_container(extras, coord_fix_fn)
+container = z_J_container()
 
 #print(z_J_container()) # compare with each no as it comes out if it's right or not. Indeed it worked :)
 
@@ -281,7 +278,7 @@ container = z_J_container(extras, coord_fix_fn)
 # we will need to first create the Jacobian matrix. Then the Kahler form over the CP^4 (FS). And finally the determinant
 # of the pullback given by the determinant of two Jacobian matrices acting over the FS kahler form.
 
-def Jacobian_matrix(extras,container):
+def Jacobian_matrix(extras,fixed):
 
     Jacobians = []
     for y in range(len(extras)):
@@ -314,7 +311,7 @@ def Jacobian_matrix(extras,container):
 
     return Jacobians
 
-Jack = Jacobian_matrix(extras,container)
+Jack = Jacobian_matrix(extras,fixed)
 #print("First Jacobian matrix:\n", Jack[0])
 #print("Second Jacobian matrix:\n", Jack[1])
 #print("Shape of Jack[0]:", Jack[0].shape)
@@ -357,7 +354,7 @@ metrics_at_each_p_M = metric_builder(fixed)
 
 # Now we can code the determinant of the pullback of the Kahler form. det(i J^T g J)
 
-def determinant_builder(extras):
+def determinant_builder():
 
     determinant_pullback_at_each_p_M = []
 
@@ -375,7 +372,7 @@ def determinant_builder(extras):
 
     return determinant_pullback_at_each_p_M
 
-determinant_list = determinant_builder(extras)
+determinant_list = determinant_builder()
 
 #print(determinant_builder())
 #print("Count", len(determinant_builder()) ,'\n')
@@ -392,7 +389,7 @@ determinant_list = determinant_builder(extras)
 def Monomial_list_coord_value():
 
     Monomial_list = []
-    for i in range(len(sample)):
+    for i in range(1000):
         x = coordinates_for_every_p_M[i]
         variables = [x[0],x[1],x[2],x[3],x[4]]
         combo = combinations_with_replacement(variables, 5) ### INPUT DEGREE OF COMBINATION YOU WANNA FIND !!!!!
@@ -404,7 +401,7 @@ def Monomial_list_coord_value():
 every_single_monomial_combination_tuple = Monomial_list_coord_value()
 
 n = 5  # number of coordinates we are considering
-k = 2  # order polynomial we are considering
+k = 5  # order polynomial we are considering
 N_k = math.comb(n + k - 1, k)
 
 print(N_k)
@@ -424,10 +421,10 @@ def first_factor_denominator_sum():
 
     return factor
 
-error_V_CY = first_factor_denominator_sum()
-#print(error_V_CY)
+ffds = first_factor_denominator_sum()
+#print(ffds)
 
-first_factor = (N_k / (( 1/len(sample) ) * error_V_CY))
+first_factor = ( N_k / ( ( 1/len(sample) ) * ffds ) )
 #print(first_factor)
 
 
@@ -505,7 +502,7 @@ def T_map_function():
 
     T_map = first_factor * sohsf
     factor = 0
-    for _ in range(10): # Input here how many times to iterate the T_map
+    for _ in range(10):
         for i in range(len(sample)):
             factor = factor + first_factor * (sfm[i] /(np.einsum("mn,mn",T_map,sfm[i])))
         T_map = first_factor * factor
@@ -521,66 +518,3 @@ h_new = np.transpose(np.linalg.inv(T_map))
 
 print(h_new.shape)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# STEP 3: Calculate the error in the code. It's nice to have a nice recap of the variables we have.
-# Np = 1000
-# k = 5
-# Iteration times = 10
-
-N_t = 4500
-
-def error_vol_CY(N_t, container, determinant_list):
-
-    factor = 0
-    # Just like above here pick the desired N_k value over which the T-map should operate.
-    for i in range(N_t):
-        factor = factor + 1/(25 * (abs(container[i]) ** 8) * (determinant_list[i]))
-
-    Evcy = (1/N_t) * factor
-
-    return Evcy
-
-EVCY = error_vol_CY(N_t, container, determinant_list)
-#print(EVCY)
-
-
-def error_vol_K(determinant_list, container):
-
-    factor = 0
-    for i in range(N_t):
-
-        factor = factor + (-1j/8)*(determinant_list[i]/(25*(abs(container[i]) ** 8)))*(1 / (25 *
-                    (abs(container[i]) ** 8) * (determinant_list[i])))
-
-    evk = (1/N_t)*factor
-
-    return evk
-
-EVK = error_vol_K(determinant_list, container)
-
-def sigma_measure_error(determinant_list, container, EVCY):
-    factor = 0
-    for i in range(N_t):
-        factor = factor + (abs( 1 - ((-1j/8)*(determinant_list[i]/EVK)/(abs(container[i]) ** 8)/EVCY))) * 1/(25 *
-                                            (abs(container[i]) ** 8) * (determinant_list[i]))
-
-    sigma = (1/(N_t*EVCY)) * factor
-
-    return sigma
-
-sigma = sigma_measure_error(determinant_list, container, EVCY)
-
-print(sigma)
