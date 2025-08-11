@@ -589,7 +589,7 @@ def K_0_builder():
 K_0_list = K_0_builder()
 
 
-def K_i_builder()   # NBBBBBB found a way of storing s_alphas as a list of vectors really useful to generalise
+def K_i_builder():   # NBBBBBB found a way of storing s_alphas as a list of vectors really useful to generalise
     k_i_list = []
     helping_list = []
     for i in range(N_t):
@@ -618,6 +618,23 @@ def K_i_builder()   # NBBBBBB found a way of storing s_alphas as a list of vecto
 K_i_list = K_i_builder()
 
 #print(K_i_list[3].shape)
+
+
+
+def metric_list():
+
+    metric_list = []
+
+    for i in range(N_t):
+        g = (1/np.pi)*(K_0_list[i] * K_ijbar_list[i] - (K_0_list[i])**2 * np.outer(K_i_list[i], np.matrix.conj(K_i_list[i])))
+
+        metric_list.append(g)
+
+    return metric_list
+
+metroboomin = metric_list()
+
+#print(metroboomin[2]-metroboomin[499])
 
 
 
