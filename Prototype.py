@@ -77,7 +77,7 @@ def generate_quintic_points():
 
             # Optional: check that Q(z) ≈ 0, condition to break the code if not accurate enough
             Qz = np.sum(z ** 5)
-            if np.abs(Qz) >= 1e-8:  # threshold
+            if np.abs(Qz) >= 1e-15:  # threshold
                continue
 
             points.append(z)
@@ -501,7 +501,13 @@ sfwad = second_factor_weight_and_num()
 def sum_over_h_second_factor():
 
     factor = np.zeros((N_k,N_k), dtype = complex)
-    h = np.eye(N_k, dtype=complex)
+    #h = np.zeros((N_k,N_k), dtype=complex)
+    h = np.array([[1, 1j, -1, -1j, 0],
+                        [-1j, 1, 1j, -1, 0],
+                        [-1, -1j, 1, 1j, 0],
+                        [1j, -1, -1j, 1, 0],
+                        [0, 0, 0, 0, 1]], dtype=complex)
+
 
     for i in range(len(sample)):
         factor = factor + ( sfwad[i] / (np.einsum("mn,mn",h,sfm[i])) )
@@ -688,7 +694,7 @@ EVK = error_Vol_K()
 def sigma_builder():
     factor = 0
     for i in range(N_t):
-        factor = factor + abs(1-(((1j/8))*(det_metroboomin_list[i]/EVK)/((OmOmbar_list[i])/EVCY))) * w_M_list[i]
+        factor = factor + abs(1-((1j/8)*((det_metroboomin_list[i]/EVK)/((OmOmbar_list[i])/EVCY)))) * w_M_list[i]
         #print(factor)
     sigma = (1/(N_t*EVCY))*factor
     return sigma
