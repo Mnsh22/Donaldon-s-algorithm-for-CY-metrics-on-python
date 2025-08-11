@@ -251,16 +251,13 @@ coordinates_for_every_p_M = extra_coordinates_fixing(coord_fix_fn, extras)
 # Also nice cause we now can make a list also of all z_J easily just in case for the T-Map,
 # just store coord_fix_fn[i][b] into a list and gg.
 
-def z_J_container(extras, coord_fix_fn):
+def z_J_container(extras, coordinates_for_every_p_M):
 
     list_of_z_J = []
 
     for i in range(len(extras)):
         b = extras[i]
-        not_b_indices = [k for k in range(5) if k != b]
-        s = sum(coord_fix_fn[i][k] ** 5 for k in not_b_indices)
-        coord_fix_fn[i][b] = (-s) ** (1 / 5)
-        z_J_for_T_map = (coord_fix_fn[i][b]) #gonna list straightaway the norm to the 8 since is what we need
+        z_J_for_T_map = (coordinates_for_every_p_M[i][b]) #gonna list straigtaway the norm to the 8 since is what we need
         # for the T_map
 
         #print(z_J_for_T_map) #Need to check if it's right and so imma just print each no as it comes out and then
