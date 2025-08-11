@@ -66,7 +66,7 @@ for i, t in enumerate(roots):
 # Now we need to repeat the process n-times n=p_M times.
 def generate_quintic_points():
     points = []
-    p_M_points = 5000 ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
+    p_M_points = 18000 ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
     while len(points) < p_M_points:
         roots, p, q = find_quintic_roots()
 
@@ -90,7 +90,7 @@ def generate_quintic_points():
 sample = generate_quintic_points()
 
 #print("Shape:", sample.shape)  # (1000, 5)
-print("Sample point:", sample[0]) #I am just checking if it's working alright
+#print("Sample point:", sample[0]) #I am just checking if it's working alright
 
 # samples therefore contains all the p_M generated points. Hence we can finally start constructing the T-Map
 
@@ -243,6 +243,7 @@ def extra_coordinates_fixing(coord_fix_fn, extras):
 #print(extra_coordinates_fixing(coord_fix_fn))
 
 coordinates_for_every_p_M = extra_coordinates_fixing(coord_fix_fn, extras)
+#print(coordinates_for_every_p_M[1], coordinates_for_every_p_M[998])
 
 # Seems to work, by checking print(coord_fixing(sample)) and print(extras) the only no that should change from the first
 # of the two print should be the component given by print(extras), and it matches, so should be right.
@@ -322,11 +323,9 @@ Jack = Jacobian_matrix(extras,container)
 # Now onto defining the metric, for the Kahler form.
 
 def metric_builder(fixed):
-    g = np.zeros((5,5), dtype = complex) # remember that g[i][j] means i'th row j'th column element.
-
     container_of_metrics = []
-
-    for x in range(len(fixed)):
+    for x in range(len(fixed)):  # remember that g[i][j] means i'th row j'th column element.
+        g = np.zeros((5, 5), dtype=complex)
         z = coordinates_for_every_p_M[x]
         for i in range(5):
             for j in range(5):
@@ -347,7 +346,7 @@ def metric_builder(fixed):
 
 metrics_at_each_p_M = metric_builder(fixed)
 
-#print(metrics_at_each_p_M[999])
+print(metrics_at_each_p_M[1], metrics_at_each_p_M[998])
 
 
 
@@ -401,7 +400,7 @@ def Monomial_list_coord_value():
 every_single_monomial_combination_tuple = Monomial_list_coord_value()
 
 n = 5  # number of coordinates we are considering
-k = 2  # order polynomial we are considering
+k = 5  # order polynomial we are considering
 
 #def N_k_builder():
 N_k = math.comb(n + k - 1, k)
@@ -539,7 +538,7 @@ print(h_new.shape)
 # k = 5
 # Iteration times = 10
 
-N_t = 4000
+N_t = 15000
 
 def error_vol_CY(N_t, container, determinant_list):
 
@@ -563,7 +562,7 @@ def error_vol_K(determinant_list, container):
 
         factor = factor + ((determinant_list[i])/(1/(25*((container[i])**8))))*(1/(25 * (abs(container[i]) ** 8) * (determinant_list[i])))
 
-    evk = (1/N_t)*(-1j/8)*factor
+    evk = (1/N_t) * (-1j/8) * factor
 
     return evk
 
