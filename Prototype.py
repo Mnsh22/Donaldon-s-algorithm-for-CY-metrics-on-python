@@ -151,10 +151,10 @@ fixed = coordinates_picking(sample)
 
 # Following function will set one of the coordinates of the array to 1 according to the function we defined above.
 def coordinates_fixing(sample):
-
+    fix = fixed
     for i in range(len(sample)): # useful trick to assign no 1 to length in order for the list
-        b=coordinates_picking(sample)[i] # b is the associated element for the i'th component of the list.
-        sample[i][b] = 1 # sample[i] is the i'th element (= array) of the sample list since they match lengths and order
+        b=fix[i] # b is the associated element for the i'th component of the list.
+        sample[i] = sample[i]/sample[i][b]  # sample[i] is the i'th element (= array) of the sample list since they match lengths and order
         # anyways and so sample[i][b] is the b'th element in the array.
 
     return sample #really important cause this tells us that such change is stored in the sample, so when calling such
