@@ -414,12 +414,22 @@ N_k = math.comb(n + k - 1, k) #we looking at k less than 5 anyways, remember tha
 # Now we need to add a code that creates the T-map. We divide the labour in two factors. First one Being N_k/Vol_CY and
 # the second factor containing the sum over the matrix constructed by the monomials times the weight
 # First factor given by:
+
+def weight_list():
+    weight_list = []
+    for i in range(len(sample)):
+        w = 1 / (25 * (abs(container[i]) ** 8) * (determinant_list[i]))
+        weight_list.append(w)
+    return weight_list
+
+w_M_list = weight_list()
+
 def first_factor(N_k):
 
     factor = 0
     # Just like above here pick the desired N_k value over which the T-map should operate.
     for i in range(len(sample)):
-        factor = factor + 1/(25 * (abs(container[i]) ** 8) * (determinant_list[i]))
+        factor = factor + w_M_list[i]
     Vol_CY = (1/len(sample)) * factor
     first_fact = (N_k)/(Vol_CY)
 
@@ -474,7 +484,7 @@ def second_factor_weight_and_num():
     selection_iteration_term = []
 
     for i in range(len(sample)):
-        term = (1/(25 * (abs(container[i]) ** 8) * (determinant_list[i]))) * sfm[i]
+        term = w_M_list[i] * sfm[i]
         selection_iteration_term.append(term)
 
     return selection_iteration_term
@@ -494,7 +504,7 @@ def sum_over_h_second_factor():
     h = np.eye(N_k, dtype=complex)
 
     for i in range(len(sample)):
-        factor = factor + (1/(np.einsum("mn,mn",h,sfm[i]))) * sfwad[i]
+        factor = factor + ( sfwad[i] / (np.einsum("mn,mn",h,sfm[i])) )
 
     return factor
 
@@ -550,7 +560,7 @@ def error_vol_CY(N_t, container, determinant_list):
     factor = 0
     # Just like above here pick the desired N_k value over which the T-map should operate.
     for i in range(N_t):
-        factor = factor + 1/(25 * (abs(container[i]) ** 8) * (determinant_list[i]))
+        factor = factor + w_M_list[i]
 
     Evcy = (1/N_t) * factor
 
@@ -559,6 +569,15 @@ def error_vol_CY(N_t, container, determinant_list):
 EVCY = error_vol_CY(N_t, container, determinant_list)
 #print(EVCY)
 
+def Volume_form_builder():
+
+    volume_form_list = []
+    for i in range(N_t):
+        OmOmbar = (5 ** (-2)) * ((abs(container[i]))**(-8))
+        volume_form_list.append(OmOmbar)
+    return volume_form_list
+
+OmOmbar_list = Volume_form_builder()
 
 
 # NOTE THIS IS JUST FOR k = 1. NEED TO FIND A WAY TO GENERALISE ON MATEMATICA FOR AT LEAST k=2 TOO.
@@ -626,7 +645,7 @@ def metric_list():
     metric_list = []
 
     for i in range(N_t):
-        g = (1/np.pi)*(K_0_list[i] * K_ijbar_list[i] - (K_0_list[i])**2 * np.outer(K_i_list[i], np.matrix.conj(K_i_list[i])))
+        g = (1/np.pi)* (K_0_list[i] * K_ijbar_list[i] - ((K_0_list[i])** 2) * np.outer(K_i_list[i], np.matrix.conj(K_i_list[i])))
 
         metric_list.append(g)
 
@@ -659,7 +678,7 @@ det_metroboomin_list = actual_determinant_builder()
 def error_Vol_K():
     factor = 0
     for i in range(N_t):
-        factor = factor + (1j/8) * (det_metroboomin_list[i]/(1/(25*(container[i]**8))))*(1/(25 * (abs(container[i]) ** 8) * (determinant_list[i])))
+        factor = factor + (1j/8) * (det_metroboomin_list[i] / (OmOmbar_list[i])) * w_M_list[i]
     evk = (1/N_t) * factor
     return evk
 
@@ -669,7 +688,7 @@ EVK = error_Vol_K()
 def sigma_builder():
     factor = 0
     for i in range(N_t):
-        factor = factor + abs(1-((det_metroboomin_list[i]/EVK)/((1/(25*(container[i]**8)))/EVCY)))*(1/(25 * (abs(container[i]) ** 8) * (determinant_list[i])))
+        factor = factor + abs(1-((det_metroboomin_list[i]/EVK)/((OmOmbar_list[i])/EVCY))) * w_M_list[i]
         #print(factor)
     sigma = (1/(N_t*EVCY))*factor
     return sigma
