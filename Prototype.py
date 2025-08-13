@@ -4,8 +4,7 @@
 import numpy as np
 import math
 from itertools import combinations_with_replacement
-
-
+from numba import njit
 
 # STEP 1: Generate random points on the quintic,
 
@@ -87,7 +86,7 @@ def generate_quintic_points(p_M_points):
 
     return np.array(points)  # shape: (n_points, 5)
 
-sample = generate_quintic_points(10000) ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
+sample = generate_quintic_points(70000) ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
 
 
 #print("Shape:", sample.shape)  # (1000, 5)
@@ -305,7 +304,7 @@ def Jacobian_matrix(extras,container):
                 # which is given by q by definition, ie: for the h'th column and q'th row then such component
                 # is equal to 1.
                 if i == c: # infamous conditions
-                    J[q][i] = (-(g[h] ** 4) / (container[y]) ** 4)
+                    J[q][i] = abs((-(g[h] ** 4) / (container[y]) ** 4))
                 elif i == h:
                     J[q][i]=1 # infamous conditions
 
@@ -385,6 +384,14 @@ determinant_list = determinant_builder(extras)
 
 # We first define the monomials of the map.
 
+n = 5  # number of coordinates we are considering
+k = 1  # order polynomial we are considering
+
+#def N_k_builder():
+N_k = math.comb(n + k - 1, k) #we looking at k less than 5 anyways, remember that for k>5 need to remove dof
+
+#print(N_k)
+
 #creating a function that generates the list of monomials combination for a given k (user's choice)
 
 def Monomial_list_coord_value():
@@ -393,7 +400,7 @@ def Monomial_list_coord_value():
     for i in range(len(sample)):
         x = coordinates_for_every_p_M[i]
         variables = [x[0],x[1],x[2],x[3],x[4]]
-        combo = combinations_with_replacement(variables, 1) ### INPUT DEGREE OF COMBINATION YOU WANNA FIND !!!!!
+        combo = combinations_with_replacement(variables, k)
         gh = list(combo)
         Monomial_list.append(gh)
 
@@ -402,13 +409,7 @@ def Monomial_list_coord_value():
 every_single_monomial_combination_tuple = Monomial_list_coord_value()
 #print(every_single_monomial_combination_tuple[2])
 
-n = 5  # number of coordinates we are considering
-k = 1  # order polynomial we are considering
 
-#def N_k_builder():
-N_k = math.comb(n + k - 1, k) #we looking at k less than 5 anyways, remember that for k>5 need to remove dof
-
-#print(N_k)
 
 
 
@@ -459,7 +460,7 @@ def section_vector_list():
 
         for j in range(N_k):
             y = list(x[j])
-            prod = y[0] #*y[1] if k=2. *y[1]*y[2] if k=3 and so on. Note that this is even for k=1
+            prod = y[0]#*y[1]#*y[2]#*y[3]#*y[4]
             # cause y a tuple and not int
             aid_list.append(prod)
 
@@ -542,7 +543,7 @@ def T_map_function():
 
     T_map = ff * sohsf
     factor = 0
-    for _ in range(5): # Input here how many times to iterate the T_map
+    for _ in range(15): # Input here how many times to iterate the T_map
         for i in range(len(sample)):
             factor = factor + ff * ( sfm[i] / (np.einsum("mn,mn",np.transpose(np.linalg.inv(T_map)),sfm[i])) )
         T_map = ff * factor
@@ -553,8 +554,6 @@ T_map = T_map_function()
 
 #print(T_map)
 #print(T_map.shape)
-
-# AAAAAAAHHHHHHHHH WE MAY HAVE FOUND THE T_MAP
 
 h_new = np.transpose(np.linalg.inv(T_map))
 
@@ -579,7 +578,7 @@ h_new = np.transpose(np.linalg.inv(T_map))
 # k = 1
 # Iteration times = 20
 
-N_t = 5000
+N_t = 50000
 
 def error_vol_CY(N_t):
 
@@ -670,7 +669,7 @@ def metric_list():
     metric_list = []
 
     for i in range(N_t): # from notes ML 4CY
-        g = (1/np.pi)* (K_0_list[i] * K_ijbar_list[i] - ((K_0_list[i])** 2) * np.outer(K_i_list[i], np.matrix.conj(K_i_list[i])))
+        g = (1/(k * np.pi))* ( (K_0_list[i] * K_ijbar_list[i]) - ( ((K_0_list[i])** 2) * np.outer(K_i_list[i], np.matrix.conj(K_i_list[i])) ) )
 
         metric_list.append(g)
 
