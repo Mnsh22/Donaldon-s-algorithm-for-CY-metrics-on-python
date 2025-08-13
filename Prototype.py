@@ -304,7 +304,7 @@ def Jacobian_matrix(extras,container):
                 # which is given by q by definition, ie: for the h'th column and q'th row then such component
                 # is equal to 1.
                 if i == c: # infamous conditions
-                    J[q][i] = abs((-(g[h] ** 4) / (container[y]) ** 4))
+                    J[q][i] = (-(g[h] ** 4) / (container[y]) ** 4)
                 elif i == h:
                     J[q][i]=1 # infamous conditions
 
@@ -321,7 +321,6 @@ Jack = Jacobian_matrix(extras,container)
 
 
 # Now onto defining the metric, for the Kahler form.
-
 def metric_builder(fixed):
     container_of_metrics = []
     for x in range(len(fixed)):  # remember that g[i][j] means i'th row j'th column element.
@@ -360,10 +359,10 @@ def determinant_builder(extras):
     for i in range(len(extras)):
         g = metrics_at_each_p_M[i]
         J = Jack[i]
-        Jt = np.transpose(J)
+        Jt = np.matrix_transpose(J)
         Jtbar = np.conjugate(Jt)
 
-        pullback = J @ g @ Jtbar
+        pullback = np.einsum('ia,ab,bj -> ij', J,g,Jtbar)
         #print(pullback.shape)
 
         det = np.linalg.det(pullback)
@@ -429,11 +428,7 @@ w_M_list = weight_list()
 
 def first_factor(N_k):
 
-    factor = 0
-    # Just like above here pick the desired N_k value over which the T-map should operate.
-    for i in range(len(sample)):
-        factor = factor + w_M_list[i]
-    Vol_CY = (1/len(sample)) * factor
+    Vol_CY = (1/len(sample)) * sum(w_M_list[i] for i in range(len(sample)))
     first_fact = (N_k)/(Vol_CY)
 
     return first_fact
@@ -519,7 +514,6 @@ sfwad = second_factor_weight_and_num()
 
 def sum_over_h_second_factor():
 
-    factor = np.zeros((N_k,N_k), dtype = complex)
     h = np.eye(N_k, dtype=complex)
     #h = np.array([[1, 1j, -1, -1j, 0],
                         #[-1j, 1, 1j, -1, 0],
@@ -527,10 +521,9 @@ def sum_over_h_second_factor():
                         #[1j, -1, -1j, 1, 0],
                        # [0, 0, 0, 0, 1]], dtype=complex)
 
-    #print('Hello world')
-    for i in range(len(sample)):
-        factor = factor + ( sfm[i] / (np.einsum("mn,mn",np.linalg.inv(h),sfm[i])) )
-        #print(factor)
+
+    factor = sum((( sfm[i] * w_M_list[i]) / (np.einsum("mn,mn",np.linalg.inv(h),sfm[i])) ) for i in range(len(sample)) )
+    #print(factor)
     return factor
 
 sohsf = sum_over_h_second_factor()
@@ -542,12 +535,9 @@ sohsf = sum_over_h_second_factor()
 def T_map_function():
 
     T_map = ff * sohsf
-    factor = 0
-    for _ in range(15): # Input here how many times to iterate the T_map
-        for i in range(len(sample)):
-            factor = factor + ff * ( sfm[i] / (np.einsum("mn,mn",np.transpose(np.linalg.inv(T_map)),sfm[i])) )
-        T_map = ff * factor
-        print(T_map)
+
+    for _ in range(30): # Input here how many times to iterate the T_map
+        T_map =  ff * sum( (sfm[i] * w_M_list[i])/ (np.einsum("mn,mn",np.transpose(np.linalg.inv(T_map)),sfm[i])) for i in range(len(sample)) )
     return T_map
 
 T_map = T_map_function()
@@ -578,16 +568,11 @@ h_new = np.transpose(np.linalg.inv(T_map))
 # k = 1
 # Iteration times = 20
 
-N_t = 50000
+N_t = 60000
 
 def error_vol_CY(N_t):
-
-    factor = 0
     # Just like above here pick the desired N_k value over which the T-map should operate.
-    for i in range(N_t):
-        factor = factor + w_M_list[i]
-    Evcy = (1/N_t) * factor
-
+    Evcy = (1/N_t) * sum(w_M_list[i] for i in range(N_t))
     return Evcy
 
 EVCY = error_vol_CY(N_t)
@@ -669,7 +654,7 @@ def metric_list():
     metric_list = []
 
     for i in range(N_t): # from notes ML 4CY
-        g = (1/(k * np.pi))* ( (K_0_list[i] * K_ijbar_list[i]) - ( ((K_0_list[i])** 2) * np.outer(K_i_list[i], np.matrix.conj(K_i_list[i])) ) )
+        g = (1/(k * np.pi))* ( (K_0_list[i] * K_ijbar_list[i]) - ( ((K_0_list[i])*(K_0_list[i])) * np.outer(K_i_list[i], np.matrix.conj(K_i_list[i])) ) )
 
         metric_list.append(g)
 
@@ -686,10 +671,10 @@ def actual_determinant_builder():
     for i in range(N_t):
         g = metroboomin[i]
         J = Jack[i]
-        Jt = np.transpose(J)
+        Jt = np.matrix_transpose(J)
         Jtbar = np.conjugate(Jt)
 
-        pullback = J @ g @ Jtbar
+        pullback = np.einsum('ia,ab,bj -> ij', J,g,Jtbar)
 
         det = np.linalg.det(pullback)
 
@@ -700,11 +685,8 @@ def actual_determinant_builder():
 det_metroboomin_list = actual_determinant_builder()
 
 def error_Vol_K():
-    factor = 0
-    for i in range(N_t):
-        factor = factor + (det_metroboomin_list[i] / (OmOmbar_list[i])) * w_M_list[i]
-        #print(factor)
-    evk = (1/N_t) * factor
+
+    evk = (1/N_t) * sum((det_metroboomin_list[i] / (OmOmbar_list[i])) * w_M_list[i] for i in range(N_t))
     return evk
 
 EVK = error_Vol_K()
@@ -715,7 +697,7 @@ def sigma_builder():
     for i in range(N_t):
         factor = factor + (abs(1-((det_metroboomin_list[i]/EVK)/((OmOmbar_list[i])/EVCY)))) * w_M_list[i]
         #print(factor) #it somehow converges proper quick. No matter what
-    sigma = (1/(N_t*EVCY))*factor
+    sigma = (1/(N_t*EVCY)) * factor
     return sigma
 
 sigma = sigma_builder()

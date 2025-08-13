@@ -4,8 +4,7 @@
 import numpy as np
 import math
 from itertools import combinations_with_replacement
-
-
+from numba import njit
 
 # STEP 1: Generate random points on the quintic,
 
@@ -65,7 +64,6 @@ for i, t in enumerate(roots):
 
 # Now we need to repeat the process n-times n=p_M times.
 
-p_M_points = 10000 ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
 def generate_quintic_points(p_M_points):
     points = []
     while len(points) < p_M_points:
@@ -78,7 +76,7 @@ def generate_quintic_points(p_M_points):
 
             # Optional: check that Q(z) ≈ 0, condition to break the code if not accurate enough
             Qz = np.sum(z ** 5)
-            if np.abs(Qz) > 1e-20:  # threshold
+            if np.abs(Qz) > 1e-15:  # threshold
                continue
 
             points.append(z)
@@ -88,7 +86,7 @@ def generate_quintic_points(p_M_points):
 
     return np.array(points)  # shape: (n_points, 5)
 
-sample = generate_quintic_points(p_M_points)
+sample = generate_quintic_points(50000) ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
 
 
 #print("Shape:", sample.shape)  # (1000, 5)
@@ -323,7 +321,6 @@ Jack = Jacobian_matrix(extras,container)
 
 
 # Now onto defining the metric, for the Kahler form.
-
 def metric_builder(fixed):
     container_of_metrics = []
     for x in range(len(fixed)):  # remember that g[i][j] means i'th row j'th column element.
@@ -362,10 +359,10 @@ def determinant_builder(extras):
     for i in range(len(extras)):
         g = metrics_at_each_p_M[i]
         J = Jack[i]
-        Jt = np.transpose(J)
+        Jt = np.matrix_transpose(J)
         Jtbar = np.conjugate(Jt)
 
-        pullback = J @ g @ Jtbar
+        pullback = np.einsum('ia,ab,bj -> ij', J,g,Jtbar)
         #print(pullback.shape)
 
         det = np.linalg.det(pullback)
@@ -386,6 +383,14 @@ determinant_list = determinant_builder(extras)
 
 # We first define the monomials of the map.
 
+n = 5  # number of coordinates we are considering
+k = 1  # order polynomial we are considering
+
+#def N_k_builder():
+N_k = math.comb(n + k - 1, k) #we looking at k less than 5 anyways, remember that for k>5 need to remove dof
+
+#print(N_k)
+
 #creating a function that generates the list of monomials combination for a given k (user's choice)
 
 def Monomial_list_coord_value():
@@ -394,7 +399,7 @@ def Monomial_list_coord_value():
     for i in range(len(sample)):
         x = coordinates_for_every_p_M[i]
         variables = [x[0],x[1],x[2],x[3],x[4]]
-        combo = combinations_with_replacement(variables, 1) ### INPUT DEGREE OF COMBINATION YOU WANNA FIND !!!!!
+        combo = combinations_with_replacement(variables, k)
         gh = list(combo)
         Monomial_list.append(gh)
 
@@ -403,13 +408,7 @@ def Monomial_list_coord_value():
 every_single_monomial_combination_tuple = Monomial_list_coord_value()
 #print(every_single_monomial_combination_tuple[2])
 
-n = 5  # number of coordinates we are considering
-k = 1  # order polynomial we are considering
 
-#def N_k_builder():
-N_k = math.comb(n + k - 1, k) #we looking at k less than 5 anyways, remember that for k>5 need to remove dof
-
-#print(N_k)
 
 
 
@@ -460,7 +459,7 @@ def section_vector_list():
 
         for j in range(N_k):
             y = list(x[j])
-            prod = y[0] #*y[1] if k=2. *y[1]*y[2] if k=3 and so on. Note that this is even for k=1
+            prod = y[0]#*y[1]#*y[2]#*y[3]#*y[4]
             # cause y a tuple and not int
             aid_list.append(prod)
 
@@ -529,7 +528,7 @@ def sum_over_h_second_factor():
 
     #print('Hello world')
     for i in range(len(sample)):
-        factor = factor + ( sfm[i] / (np.einsum("mn,mn",np.linalg.inv(h),sfm[i])) )
+        factor = factor + (( sfm[i] * w_M_list[i]) / (np.einsum("mn,mn",np.linalg.inv(h),sfm[i])) )
         #print(factor)
     return factor
 
@@ -543,9 +542,9 @@ def T_map_function():
 
     T_map = ff * sohsf
     factor = 0
-    for _ in range(5): # Input here how many times to iterate the T_map
+    for _ in range(1): # Input here how many times to iterate the T_map
         for i in range(len(sample)):
-            factor = factor + ff * ( sfm[i] / (np.einsum("mn,mn",np.transpose(np.linalg.inv(T_map)),sfm[i])) )
+            factor = factor + ( (sfm[i] * w_M_list[i])/ (np.einsum("mn,mn",np.transpose(np.linalg.inv(T_map)),sfm[i])) )
         T_map = ff * factor
         print(T_map)
     return T_map
@@ -554,8 +553,6 @@ T_map = T_map_function()
 
 #print(T_map)
 #print(T_map.shape)
-
-# AAAAAAAHHHHHHHHH WE MAY HAVE FOUND THE T_MAP
 
 h_new = np.transpose(np.linalg.inv(T_map))
 
@@ -580,7 +577,7 @@ h_new = np.transpose(np.linalg.inv(T_map))
 # k = 1
 # Iteration times = 20
 
-N_t = 5000
+N_t = 50000
 
 def error_vol_CY(N_t):
 
@@ -671,7 +668,7 @@ def metric_list():
     metric_list = []
 
     for i in range(N_t): # from notes ML 4CY
-        g = (1/np.pi)* (K_0_list[i] * K_ijbar_list[i] - ((K_0_list[i])** 2) * np.outer(K_i_list[i], np.matrix.conj(K_i_list[i])))
+        g = (1/(k * np.pi))* ( (K_0_list[i] * K_ijbar_list[i]) - ( ((K_0_list[i])** 2) * np.outer(K_i_list[i], np.matrix.conj(K_i_list[i])) ) )
 
         metric_list.append(g)
 
@@ -688,10 +685,10 @@ def actual_determinant_builder():
     for i in range(N_t):
         g = metroboomin[i]
         J = Jack[i]
-        Jt = np.transpose(J)
+        Jt = np.matrix_transpose(J)
         Jtbar = np.conjugate(Jt)
 
-        pullback = J @ g @ Jtbar
+        pullback = np.einsum('ia,ab,bj -> ij', J,g,Jtbar)
 
         det = np.linalg.det(pullback)
 
@@ -715,9 +712,9 @@ EVK = error_Vol_K()
 def sigma_builder():
     factor = 0
     for i in range(N_t):
-        factor = factor + (abs(1-(det_metroboomin_list[i]/EVK)/((OmOmbar_list[i])/EVCY))) * w_M_list[i]
+        factor = factor + (abs(1-((det_metroboomin_list[i]/EVK)/((OmOmbar_list[i])/EVCY)))) * w_M_list[i]
         #print(factor) #it somehow converges proper quick. No matter what
-    sigma = (1/(N_t*EVCY))*factor
+    sigma = (1/(N_t*EVCY)) * factor
     return sigma
 
 sigma = sigma_builder()
