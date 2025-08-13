@@ -39,7 +39,7 @@ def find_quintic_roots():
 
 
     polynomial = np.zeros(6, dtype=complex)  # Vector each containing a term in the expansion of the polynomial
-    # cause np.roots works with vectors only. 
+    # cause np.roots works with vectors only.
 
     for i in range(5):
         for k in range(6):
@@ -64,9 +64,10 @@ for i, t in enumerate(roots):
     # didn't understand. However it worked. So if it isn't broken, don't fix it :).
 
 # Now we need to repeat the process n-times n=p_M times.
-def generate_quintic_points():
+
+p_M_points = 10000 ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
+def generate_quintic_points(p_M_points):
     points = []
-    p_M_points = 10 ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
     while len(points) < p_M_points:
         roots, p, q = find_quintic_roots()
 
@@ -77,7 +78,7 @@ def generate_quintic_points():
 
             # Optional: check that Q(z) ≈ 0, condition to break the code if not accurate enough
             Qz = np.sum(z ** 5)
-            if np.abs(Qz) <= 1e-20:  # threshold
+            if np.abs(Qz) > 1e-20:  # threshold
                continue
 
             points.append(z)
@@ -87,7 +88,8 @@ def generate_quintic_points():
 
     return np.array(points)  # shape: (n_points, 5)
 
-sample = generate_quintic_points()
+sample = generate_quintic_points(p_M_points)
+
 
 #print("Shape:", sample.shape)  # (1000, 5)
 #print("Sample point:", sample[0]) #I am just checking if it's working alright
@@ -363,11 +365,12 @@ def determinant_builder(extras):
         Jt = np.transpose(J)
         Jtbar = np.conjugate(Jt)
 
-        pullback = 1j * J @ g @ Jtbar
+        pullback = J @ g @ Jtbar
+        #print(pullback.shape)
 
         det = np.linalg.det(pullback)
 
-        determinant_pullback_at_each_p_M.append(det)
+        determinant_pullback_at_each_p_M.append( det )
 
     return determinant_pullback_at_each_p_M
 
@@ -446,14 +449,15 @@ ff = first_factor(N_k)
 # each p_M. Then construct the sum function timing by the weight given by 1/(25...determinant_list[i]).
 # Starting by the numerator
 
-def second_factor_matrix():
+def section_vector_list():
 
-    section_matrix_list = []
+    section_vec_list = []
 
     for i in range(len(sample)):
         aid_list = []
         x = every_single_monomial_combination_tuple[i]
-        A = np.zeros((N_k, N_k), dtype=complex)
+        s = np.zeros(N_k, dtype=complex)
+
         for j in range(N_k):
             y = list(x[j])
             prod = y[0] #*y[1] if k=2. *y[1]*y[2] if k=3 and so on. Note that this is even for k=1
@@ -461,19 +465,34 @@ def second_factor_matrix():
             aid_list.append(prod)
 
 
-
         for r in range(N_k):
-            for v in range(N_k):
-                A[r][v] = aid_list[r] * np.conj(aid_list[v]) # section v * section r element in matrix.
-                # s_alpha s_betabar matrix
+            s[r] = aid_list[r] # s_alpha vector
 
-        section_matrix_list.append(A)
+        section_vec_list.append(s)
+
+    return section_vec_list
+
+svl = section_vector_list()
+
+def section_matrix_generator():
+
+    section_matrix_list = []
+
+
+    for f in range(len(sample)):
+        B = np.zeros((N_k,N_k), dtype=complex)
+        s = svl[f]
+        A = np.einsum('i,j->ij', s,np.matrix.conj(s))
+        C = A + B
+        for i in range(N_k):
+            C[i][i] = (A[i][i]+np.conj(A[i][i]))/2
+        section_matrix_list.append(C)
 
     return section_matrix_list
 
-sfm = second_factor_matrix()
+sfm = section_matrix_generator()
 #print(len(sfm))
-#print(sfm[0] - sfm[1])
+#print(sfm[0])
 #print(sfm[0].shape)
 
 
@@ -508,10 +527,10 @@ def sum_over_h_second_factor():
                         #[1j, -1, -1j, 1, 0],
                        # [0, 0, 0, 0, 1]], dtype=complex)
 
-
+    #print('Hello world')
     for i in range(len(sample)):
-        factor = factor + ( sfwad[i] / (np.einsum("mn,mn",h,sfm[i])) )
-
+        factor = factor + ( sfm[i] / (np.einsum("mn,mn",np.linalg.inv(h),sfm[i])) )
+        #print(factor)
     return factor
 
 sohsf = sum_over_h_second_factor()
@@ -524,13 +543,15 @@ def T_map_function():
 
     T_map = ff * sohsf
     factor = 0
-    for _ in range(1): # Input here how many times to iterate the T_map
+    for _ in range(5): # Input here how many times to iterate the T_map
         for i in range(len(sample)):
-            factor = factor + ff * (1 /(np.einsum("mn,mn",T_map,sfm[i]))) * sfwad[i]
+            factor = factor + ff * ( sfm[i] / (np.einsum("mn,mn",np.transpose(np.linalg.inv(T_map)),sfm[i])) )
         T_map = ff * factor
+        print(T_map)
     return T_map
 
 T_map = T_map_function()
+
 #print(T_map)
 #print(T_map.shape)
 
@@ -559,20 +580,19 @@ h_new = np.transpose(np.linalg.inv(T_map))
 # k = 1
 # Iteration times = 20
 
-N_t = 2
+N_t = 5000
 
-def error_vol_CY(N_t, container, determinant_list):
+def error_vol_CY(N_t):
 
     factor = 0
     # Just like above here pick the desired N_k value over which the T-map should operate.
     for i in range(N_t):
         factor = factor + w_M_list[i]
-
     Evcy = (1/N_t) * factor
 
     return Evcy
 
-EVCY = error_vol_CY(N_t, container, determinant_list)
+EVCY = error_vol_CY(N_t)
 #print(EVCY)
 
 def Volume_form_builder():
@@ -671,7 +691,7 @@ def actual_determinant_builder():
         Jt = np.transpose(J)
         Jtbar = np.conjugate(Jt)
 
-        pullback = 1j * J @ g @ Jtbar
+        pullback = J @ g @ Jtbar
 
         det = np.linalg.det(pullback)
 
@@ -684,8 +704,8 @@ det_metroboomin_list = actual_determinant_builder()
 def error_Vol_K():
     factor = 0
     for i in range(N_t):
-        factor = factor + (1j/8) * (det_metroboomin_list[i] / (OmOmbar_list[i])) * w_M_list[i]
-        print(factor)
+        factor = factor + (det_metroboomin_list[i] / (OmOmbar_list[i])) * w_M_list[i]
+        #print(factor)
     evk = (1/N_t) * factor
     return evk
 
@@ -695,8 +715,8 @@ EVK = error_Vol_K()
 def sigma_builder():
     factor = 0
     for i in range(N_t):
-        factor = factor + abs(1-((1j/8)*((det_metroboomin_list[i]/EVK)/((OmOmbar_list[i])/EVCY)))) * w_M_list[i]
-        #print(factor)
+        factor = factor + (abs(1-(det_metroboomin_list[i]/EVK)/((OmOmbar_list[i])/EVCY))) * w_M_list[i]
+        #print(factor) #it somehow converges proper quick. No matter what
     sigma = (1/(N_t*EVCY))*factor
     return sigma
 
