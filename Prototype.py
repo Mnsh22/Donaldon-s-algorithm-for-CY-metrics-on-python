@@ -65,7 +65,6 @@ for i, t in enumerate(roots):
 
 # Now we need to repeat the process n-times n=p_M times.
 
-p_M_points = 10000 ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
 def generate_quintic_points(p_M_points):
     points = []
     while len(points) < p_M_points:
@@ -78,7 +77,7 @@ def generate_quintic_points(p_M_points):
 
             # Optional: check that Q(z) ≈ 0, condition to break the code if not accurate enough
             Qz = np.sum(z ** 5)
-            if np.abs(Qz) > 1e-20:  # threshold
+            if np.abs(Qz) > 1e-15:  # threshold
                continue
 
             points.append(z)
@@ -88,7 +87,7 @@ def generate_quintic_points(p_M_points):
 
     return np.array(points)  # shape: (n_points, 5)
 
-sample = generate_quintic_points(p_M_points)
+sample = generate_quintic_points(10000) ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
 
 
 #print("Shape:", sample.shape)  # (1000, 5)
@@ -715,7 +714,7 @@ EVK = error_Vol_K()
 def sigma_builder():
     factor = 0
     for i in range(N_t):
-        factor = factor + (abs(1-(det_metroboomin_list[i]/EVK)/((OmOmbar_list[i])/EVCY))) * w_M_list[i]
+        factor = factor + (abs(1-((det_metroboomin_list[i]/EVK)/((OmOmbar_list[i])/EVCY)))) * w_M_list[i]
         #print(factor) #it somehow converges proper quick. No matter what
     sigma = (1/(N_t*EVCY))*factor
     return sigma
