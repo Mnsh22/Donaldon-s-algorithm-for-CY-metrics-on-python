@@ -14,9 +14,9 @@ from time import perf_counter
 t1 = perf_counter()
 def sample_point_C5_on_unit_sphere():
 
-    v = np.random.randn(5) + 1j*np.random.randn(5)
-    v = v / np.linalg.norm(v)
-    return v
+    v = np.random.rand(5) + 1j*np.random.rand(5)
+    vec = v / np.linalg.vector_norm(v)
+    return vec
 
 v = sample_point_C5_on_unit_sphere()
 
@@ -27,7 +27,7 @@ v = sample_point_C5_on_unit_sphere()
 # complex number of any one component. Ie:
 
 def projected_S9_point_onto_coord_of_CP4(v):
-    w = np.exp(- 1j * np.angle(v[4]))*v
+    w = np.exp(- 1j * np.angle(np.argmax(v))) * v
     return w
 
 # Now we use the two random points on S9 to define a line in CP^4 intersecting X, Ie: following the polynomial equation.
@@ -37,34 +37,30 @@ def find_quintic_roots():
     p = projected_S9_point_onto_coord_of_CP4(v1)
     q = projected_S9_point_onto_coord_of_CP4(v2)
 
-
     polynomial = np.zeros(6, dtype=complex)  # Vector each containing a term in the expansion of the polynomial
     # cause np.roots works with vectors only.
 
-    for i in range(5):
-        for k in range(6):
-            polynomial[k] = polynomial[k] + math.comb(5, k) * p[i] ** (5 - k) * q[i] ** k
-            #This is just storing (p+tq)^5 coefficient on
+    for k in range(6):
+        polynomial[k] = sum(math.comb(5, k) * (p[i] ** (5 - k)) * (q[i] ** k) for i in range(5))
 
         # Now that coeff is fully built, solve for roots
     roots = np.roots(polynomial[::-1])  # np.roots wants highest degree first
 
     return roots, p, q
 
-# Run the function
-roots, p, q = find_quintic_roots()
-
 # Evaluate points and check if they satisfy the quintic
-for i, t in enumerate(roots):
-    z = p + t * q
-    z = z/np.linalg.norm(z)  # normalize to stay in CP^4
-    Qz = np.sum(z ** 5)
+#for i, t in enumerate(roots):
+    #z = p + t * q
+    #z = z/np.linalg.norm(z)  # normalize to stay in CP^4
+    #Qz = np.sum(z ** 5)
+    #print(Qz)
     #print(f"Root {i + 1}: t = {t}")
     #print(f"Check: Q(z) = {Qz:.1e}  |  Abs = {np.abs(Qz):.1e}") # last line was added from help of GPT for an error I
     # didn't understand. However it worked. So if it isn't broken, don't fix it :).
 
 # Now we need to repeat the process n-times n=p_M times.
 
+p_M_points = 10100
 def generate_quintic_points(p_M_points):
     points = []
     while len(points) < p_M_points:
@@ -73,25 +69,24 @@ def generate_quintic_points(p_M_points):
         for t in roots:  # we gonna loop over the t in the roots function
             z = p + t * q  # specifically over this equation, so the loop will generate p and q values and sub them in here
             # for every t value.
-            z /= np.linalg.norm(z)  #normalise it cause we on a sphere
-
+            #z = z / np.linalg.norm(z)#normalise it cause we on a sphere
             # Optional: check that Q(z) ≈ 0, condition to break the code if not accurate enough
-            Qz = np.sum(z ** 5)
-            if np.abs(Qz) > 1e-15:  # threshold
+            Qw = np.sum(z ** 5)
+            if np.abs(Qw) > 1e-15:  # threshold
                continue
 
-            points.append(z)
+        points.append(z)
 
         if len(points) >= p_M_points: # limit of the while loop.
             break
 
     return np.array(points)  # shape: (n_points, 5)
 
-sample = generate_quintic_points(50010) ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
+sample = generate_quintic_points(p_M_points) ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
 
 
 #print("Shape:", sample.shape)  # (1000, 5)
-#print("Sample point:", sample[0]) #I am just checking if it's working alright
+#print("Sample point:", sample[0], sample[5]) #I am just checking if it's working alright
 
 # samples therefore contains all the p_M generated points. Hence we can finally start constructing the T-Map
 
@@ -120,33 +115,27 @@ sample = generate_quintic_points(50010) ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!
 # Now we first create a fn able to find the |z_J| term of the T-map
 
 # First like suggested by the ML 4 CY paper we need to make sure we pick the right z_J (coming into the T-map eqn)
+
 def coordinates_picking(sample):
+    results = []
+    for x in sample:  # x is a length-5 complex vector
+        i_max = int(np.argmax(np.abs(x)))  # index of largest |x[i]|
+        results.append(i_max)
+    return results
 
-    Results = [] # create a list collecting the output as you loop over the sample by [] and name it results.
+#counts = np.zeros(5, dtype=int)
+#for x in sample:
+    #i_max = np.argmax(np.abs(x))
+    #counts[i_max] += 1
 
-   # The following loop takes element of sample. Takes the zeroth element of coordinates and calculates the norm.
-    # Then if the next norm, built out of the next element of the coord. Is bigger then it replace it, if it's not it
-    # keeps it. And we store the such element.
-    for x in sample:
-        starting_i = 0
-        starting_norm = abs(x[0]) # we store the value of the first one.
-        for i in range(1, 5):
-            current_norm = abs(x[i]) # we getting the new norm values
-            if current_norm > starting_norm: # Replace the new values from the old one and since we inside the range 1
-                # to 5 it will loop over everything so it will automatically update.
-                starting_norm = current_norm
-                starting_i = i
-
-        Results.append(starting_i)
-
-    return Results
+#print("Counts of each index being max:", counts)
 
 fixed = coordinates_picking(sample)
 
+#print(fixed)
 #print(coordinates_picking(sample)) # print function to see we indeed get a 1000 values running 0 to 4. (the indices with
 # the highest norm.)
 #print("Count:", len(coordinates_picking(sample)), "\n") # checking sake that we have 1000 values
-
 
 
 
@@ -346,7 +335,7 @@ def metric_builder(fixed):
 
 metrics_at_each_p_M = metric_builder(fixed)
 
-#print(metrics_at_each_p_M[1], metrics_at_each_p_M[998])
+print(metrics_at_each_p_M[1]-metrics_at_each_p_M[998])
 
 
 
@@ -569,7 +558,7 @@ print(h_new)
 # k = 1
 # Iteration times = 20
 
-N_t = 50000
+N_t = 10000
 
 def error_vol_CY(N_t):
     # Just like above here pick the desired N_k value over which the T-map should operate.
