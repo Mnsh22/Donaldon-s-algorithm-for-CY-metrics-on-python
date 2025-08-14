@@ -1,84 +1,71 @@
 from itertools import combinations_with_replacement
-from sympy import *
 import sympy as sp
 import numpy as np
 
+# symbols
+x1 = sp.Symbol('x1')
+x2 = sp.Symbol('x2')
+x3 = sp.Symbol('x3')
+x4 = sp.Symbol('x4')
+x5 = sp.Symbol('x5')
+variables = [x1, x2, x3, x4, x5]
 
-x1 = Symbol('x1')
-x2 = Symbol('x2')
-x3 = Symbol('x3')
-x4 = Symbol('x4')
-x5 = Symbol('x5')
+# all degree-5 monomials (126 of them)
+gh = list(combinations_with_replacement(variables, 5))
 
-variables = [x1,x2,x3,x4,x5]
-combo = combinations_with_replacement(variables, 5)
-gh = list(combo)
-
+# products for each 5-tuple
 some_list = []
-for j in range(126):
+for j in range(len(gh)):
     y = gh[j]
     prod = y[0]*y[1]*y[2]*y[3]*y[4]
     some_list.append(prod)
 
-#print(some_list)
+rows = len(some_list)   # 126
+cols = len(variables)   # 5
 
-A = np.empty((126,5), dtype= object)
+# derivative matrix A (symbolic)
+A = np.empty((rows, cols), dtype=object)
+for j in range(rows):
+    for i in range(cols):
+        A[j, i] = sp.diff(some_list[j], variables[i])
 
-for i in range(5):
-    for j in range(126):
-        A[j,i]= sp.diff(some_list[j], variables[i])
+B = np.empty((126,5,5), dtype=object)
+for j in range(rows):
+    for i in range(cols):
+        for k in range(cols):
+            B[j,i,k] = sp.diff(A[j,i], variables[k])
+print(B.shape)
 
-#print(A)
+# substitute x1=1, x2=2, x3=3, x4=4, x5=5  -> numeric array
+A_num = np.empty((rows, cols), dtype=float)
+for j in range(rows):
+    for i in range(cols):
+        expr = A[j, i]
+        value = (
+            expr
+            .subs(x1, 1)
+            .subs(x2, 2)
+            .subs(x3, 3)
+            .subs(x4, 4)
+            .subs(x5, 5)
+        )
+        A_num[j, i] = float(value)
 
-A_sym = sp.Matrix(some_list).jacobian(variables)
-A_num = A_sym.subs([(x1,1), (x2,2), (x3,3), (x4,4), (x5,5)])
-print(A_sym)          # stays exact integers
-print(np.array(A_num, dtype=float))  # if you need a NumPy array
+B_num = np.empty((rows, cols, cols), dtype=float)
+for j in range(rows):
+    for i in range(cols):
+        for k in range(cols):
+            expr = B[j,i,k]
+            value = (
+                expr
+                .subs(x1, 1)
+                .subs(x2, 2)
+                .subs(x3, 3)
+                .subs(x4, 4)
+                .subs(x5, 5)
+            )
+            B_num[j, i, k] = float(value)
+# quick sanity checks
+print(B_num.shape)      # (126, 5)
+print(B_num)         # first row should be [5., 0., 0., 0., 0.]
 
-## we can finally do derivatives. Yippieeee. Computationally much faster as well cause now I can just substitute the
-## values at the end and then gg.
-
-
-'''
-yprime = y.diff(x)
-print(yprime)
-
-def Monomial_list_coord_value():
-
-    Monomial_list = []
-    for i in range(len(sample)):
-        x = coordinates_for_every_p_M[i]
-        variables = [x[0],x[1],x[2],x[3],x[4]]
-        combo = combinations_with_replacement(variables, 5)
-        gh = list(combo)
-        Monomial_list.append(gh)
-
-    return Monomial_list
-
-every_single_monomial_combination_tuple = Monomial_list_coord_value()
-
-
-def section_vector_list():
-
-    section_vec_list = []
-
-    for i in range(len(sample)):
-        aid_list = []
-        x = every_single_monomial_combination_tuple[i]
-        s = np.zeros(N_k, dtype=complex)
-
-        for j in range(N_k):
-            y = list(x[j])
-            prod = y[0]#*y[1]#*y[2]#*y[3]#*y[4]
-            # cause y a tuple and not int
-            aid_list.append(prod)
-
-
-        for r in range(N_k):
-            s[r] = aid_list[r] # s_alpha vector
-
-        section_vec_list.append(s)
-
-    return section_vec_list
-
-svl = section_vector_list()'''

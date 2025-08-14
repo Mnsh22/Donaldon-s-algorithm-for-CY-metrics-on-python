@@ -2,6 +2,7 @@
 # Step 1: Generate random points on the quintic,
 # Step 2: Construct T-map
 import numpy as np
+import sympy as sp
 import math
 from itertools import combinations_with_replacement
 from time import perf_counter
@@ -384,7 +385,7 @@ determinant_list = determinant_builder(extras)
 # We first define the monomials of the map.
 
 n = 5  # number of coordinates we are considering
-k = 1  # order polynomial we are considering
+k = 5  # order polynomial we are considering
 
 #def N_k_builder():
 N_k = math.comb(n + k - 1, k) #we looking at k less than 5 anyways, remember that for k>5 need to remove dof
@@ -455,7 +456,7 @@ def section_vector_list():
 
         for j in range(N_k):
             y = list(x[j])
-            prod = y[0]#*y[1]#*y[2]#*y[3]#*y[4]
+            prod = y[0]*y[1]*y[2]*y[3]*y[4]
             # cause y a tuple and not int
             aid_list.append(prod)
 
@@ -563,7 +564,7 @@ print(h_new)
 
 
 
-# STEP 3: Calculate the error in the code. It's nice to have a nice recap of the variables we have.
+# STEP 3: Calculate the sigma error in the code. It's nice to have a nice recap of the variables we have.
 # Np = 1000
 # k = 1
 # Iteration times = 20
@@ -593,6 +594,66 @@ OmOmbar_list = Volume_form_builder()
 # My idea is for now to build a code that would be good enough so that people can just change what can be calculated
 # analytically. The idea is that to compute the metric g, one needs information about derivatives of polynomial.
 # For k less 2 one can do them by hand, but more is jarring so still need to find a way.
+
+def derivative_section_matrix_builder():
+    z0 = sp.Symbol('z0')
+    z1 = sp.Symbol('z1')
+    z2 = sp.Symbol('z2')
+    z3 = sp.Symbol('z3')
+    z4 = sp.Symbol('z4')
+    variables = [z0, z1, z2, z3, z4]
+
+    # all degree-5 monomials (126 of them)
+    gh = list(combinations_with_replacement(variables, 5))
+
+    # products for each 5-tuple
+    some_list = []
+    for j in range(len(gh)):
+        y = gh[j]
+        prod = y[0] * y[1] * y[2] * y[3] * y[4] #each s_alpha element
+        some_list.append(prod)
+
+    rows = len(some_list)  # 126
+    cols = len(variables)  # 5
+
+    # derivative matrix A (symbolic)
+    A = np.empty((rows, cols), dtype=object)
+    for j in range(rows):
+        for i in range(cols):
+            A[j, i] = sp.diff(some_list[j], variables[i])
+
+
+
+    # make a list of d_i_s_alpha for each point p_M
+    ds_list = []
+    for x in range(len(sample)):
+        coord = coordinates_for_every_p_M[x]
+        A_num = np.empty((rows, cols), dtype=float)
+        for j in range(rows):
+            for i in range(cols):
+                expr = A[j, i]
+                value = (
+                    expr
+                    .subs(z0, coord[0])
+                    .subs(z1, coord[1])
+                    .subs(z2, coord[2])
+                    .subs(z3, coord[3])
+                    .subs(z4, coord[4])
+                )
+                A_num[j, i] = float(value)
+        ds_list.append(A_num)
+    return ds_list
+
+ds_list = derivative_section_matrix_builder()
+
+print(ds_list[126])
+
+
+
+
+
+
+
 
 
 
