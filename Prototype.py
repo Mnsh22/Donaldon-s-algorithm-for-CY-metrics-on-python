@@ -3,6 +3,7 @@
 # Step 2: Construct T-map
 import numpy as np
 import sympy as sp
+import numba as nb
 import math
 from itertools import combinations_with_replacement
 from time import perf_counter
@@ -60,7 +61,6 @@ def find_quintic_roots():
 
 # Now we need to repeat the process n-times n=p_M times.
 
-p_M_points = 10100
 def generate_quintic_points(p_M_points):
     points = []
     while len(points) < p_M_points:
@@ -82,7 +82,7 @@ def generate_quintic_points(p_M_points):
 
     return np.array(points)  # shape: (n_points, 5)
 
-sample = generate_quintic_points(p_M_points) ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
+sample = generate_quintic_points(p_M_points=52250) ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
 
 
 #print("Shape:", sample.shape)  # (1000, 5)
@@ -152,48 +152,27 @@ def coordinates_fixing(sample):
 
 coord_fix_fn = coordinates_fixing(sample) # Need to do it if we wanna define a fn in terms of it.
 
-#print(coordinates_fixing(sample)) # just checking if it's right
+#print(coordinates_fixing(sample)[1]) # just checking if it's right
 #print("Count:", len(coordinates_fixing(sample)), "\n") # again just a check
 
+def extra_trial_picking(coord_fix_fn):
+    results = []
+    for y in coord_fix_fn:  # y is a length-5 complex vector with one entry == 1
+        scores = 5 * (np.abs(y) ** 4)  # |dQ/dz_i| ~ 5*|z_i|^4
+        # knock out any entry equal to 1 (your fixed chart coord)
+        mask = np.isclose(y, 1)  # handles 1+0j safely
+        scores[mask] = -500
+        i_max = int(np.argmax(scores))
+        results.append(i_max)
+    return results
 
-
+extras = extra_trial_picking(coord_fix_fn)
+#print(extras[1])
 
 # Just like before we wanna do the same but now for |dQ/dz| as mentioned by paper, so pick coord w/ highest norm and
 # then fix such coordinate.
-def extra_coordinate_picking(coord_fix_fn):
-
-    Results_extra = []
-
-    for y in coord_fix_fn:
-
-        starting_extra = 0
-        starting_extra_norm = 5 * (y[0]) ** 4 # for every element in y we calculate the 0'th term to be the eqn on left
-
-        # the tricky bit of this fn is actually that we wanna take the sample with 1 already in it. And not use such one
-        # in out comparison. Cause otherwise since many terms are less than zero, 5 * (y[0]) ** 4 will be less than 1
-        # and 1 will always win. Hence I am making sure it will lose, choosing a big -ve no.
-
-        if y[0] == 1:
-            starting_extra_norm = -500
-            '''try removing index check gpt how and instead of looping over just remove and confront'''
-
-        # Now i can start the looping process checking for each i BUT remember again make sure to filter the 1 out.
-
-        for i in range(1, 5):
-            current_extra_norm = 5 * (y[i] ** 4)
-
-            if y[i] == 1: # filtering the 1's out.
-                current_extra_norm = -500
-
-            if current_extra_norm > starting_extra_norm: # same code as above just check and replace
-                starting_extra_norm = current_extra_norm
-                starting_extra = i
-
-        Results_extra.append(starting_extra)
-
-    return Results_extra
-
-extras = extra_coordinate_picking(coord_fix_fn)
+#print('sigmasigmaboysigmaboysigmaboy')
+#print(fixed[4]-extras[4])
 
 # wanna see the list just for eye check that nothing suspicious is popping up.
 # This section was just built to check to see if the code was working, the idea is really simple (since my coding
@@ -230,10 +209,8 @@ def extra_coordinates_fixing(coord_fix_fn, extras):
 
     return coord_fix_fn
 
-#print(extra_coordinates_fixing(coord_fix_fn))
-
 coordinates_for_every_p_M = extra_coordinates_fixing(coord_fix_fn, extras)
-#print(coordinates_for_every_p_M[1], coordinates_for_every_p_M[998])
+#print(coordinates_for_every_p_M[1])
 
 # Seems to work, by checking print(coord_fixing(sample)) and print(extras) the only no that should change from the first
 # of the two print should be the component given by print(extras), and it matches, so should be right.
@@ -269,14 +246,19 @@ container = z_J_container(extras, coord_fix_fn)
 # we will need to first create the Jacobian matrix. Then the Kahler form over the CP^4 (FS). And finally the determinant
 # of the pullback given by the determinant of two Jacobian matrices acting over the FS kahler form.
 
-def Jacobian_matrix(extras,container):
+def Jacobian_matrix():
+    cfepm = coordinates_for_every_p_M
+    ext = extras
+    fix = fixed
+    cont = container
 
     Jacobians = []
+
     for y in range(len(extras)):
 
-        g = coordinates_for_every_p_M[y]
-        c = extras[y] # i'th element of extras, ie: index we fix to -(sum...)^1/5
-        d = fixed[y]  # i'th element of fixed, ie: index we fix to 1
+        g = cfepm[y]
+        c = ext[y] # i'th element of extras, ie: index we fix to -(sum...)^1/5
+        d = fix[y]  # i'th element of fixed, ie: index we fix to 1
         J = np.zeros(( 3, 5), dtype=complex)  # the main idea is take a zero x zero matrix and based
         # of the conditions put the component there or not. Note ofc since we starting with a np.zero already
         # no need to put conditions that trivially satisfy a specific component being zero. I made a list
@@ -294,7 +276,7 @@ def Jacobian_matrix(extras,container):
                 # which is given by q by definition, ie: for the h'th column and q'th row then such component
                 # is equal to 1.
                 if i == c: # infamous conditions
-                    J[q][i] = (-(g[h] ** 4) / (container[y]) ** 4)
+                    J[q][i] = (-(g[h] ** 4) / (cont[y]) ** 4)
                 elif i == h:
                     J[q][i]=1 # infamous conditions
 
@@ -302,9 +284,9 @@ def Jacobian_matrix(extras,container):
 
     return Jacobians
 
-Jack = Jacobian_matrix(extras,container)
-#print("First Jacobian matrix:\n", Jack[0])
-#print("Second Jacobian matrix:\n", Jack[1])
+Jack = Jacobian_matrix()
+print("First Jacobian matrix:\n", Jack[0])
+print("Second Jacobian matrix:\n", Jack[1])
 #print("Shape of Jack[0]:", Jack[0].shape)
 
 
@@ -313,16 +295,17 @@ Jack = Jacobian_matrix(extras,container)
 # Now onto defining the metric, for the Kahler form.
 def metric_builder(fixed):
     container_of_metrics = []
+    cfepm = coordinates_for_every_p_M
     for x in range(len(fixed)):  # remember that g[i][j] means i'th row j'th column element.
         g = np.zeros((5, 5), dtype=complex)
-        z = coordinates_for_every_p_M[x]
+        z = cfepm[x]
         for i in range(5):
             for j in range(5):
                 if i == j:
-                    g[i][j] = (1/np.pi) * ((1/(z[0]*np.conj(z[0])+z[1]*np.conj(z[1])+z[2]*np.conj(z[2])
-                                              +z[3]*np.conj(z[3])+z[4]*np.conj(z[4])))
-                                           - ((z[i]*np.conj(z[j]))/(z[0]*np.conj(z[0])+z[1]*np.conj(z[1])+z[2]*np.conj(z[2])
-                                              +z[3]*np.conj(z[3])+z[4]*np.conj(z[4]))**2))
+                    g[i][j] = (1/np.pi) * ( ( 1/ ( z[0]*np.conj(z[0])+z[1]*np.conj(z[1])+z[2]*np.conj(z[2])
+                                              +z[3]*np.conj(z[3])+z[4]*np.conj(z[4]) ) )
+                                           - ((z[i]*np.conj(z[j])) /(z[0]*np.conj(z[0])+z[1]*np.conj(z[1])+z[2]*np.conj(z[2])
+                                              +z[3]*np.conj(z[3])+z[4]*np.conj(z[4]))**2) )
 
                 else:
                     g[i][j] = (-(1/np.pi)) * ((z[j]*np.conj(z[i]))/((z[0]*np.conj(z[0])+z[1]*np.conj(z[1])
@@ -344,11 +327,14 @@ print(metrics_at_each_p_M[1]-metrics_at_each_p_M[998])
 
 def determinant_builder(extras):
 
+    maepm = metrics_at_each_p_M
+    Jk = Jack
+
     determinant_pullback_at_each_p_M = []
 
     for i in range(len(extras)):
-        g = metrics_at_each_p_M[i]
-        J = Jack[i]
+        g = maepm[i]
+        J = Jk[i]
         Jt = np.matrix_transpose(J)
         Jtbar = np.conjugate(Jt)
 
@@ -383,11 +369,14 @@ N_k = math.comb(n + k - 1, k) #we looking at k less than 5 anyways, remember tha
 
 #creating a function that generates the list of monomials combination for a given k (user's choice)
 
-def Monomial_list_coord_value():
+def Monomial_list_coord_value(k):
+
+    cfepm = coordinates_for_every_p_M
 
     Monomial_list = []
+
     for i in range(len(sample)):
-        x = coordinates_for_every_p_M[i]
+        x = cfepm[i]
         variables = [x[0],x[1],x[2],x[3],x[4]]
         combo = combinations_with_replacement(variables, k)
         gh = list(combo)
@@ -395,7 +384,7 @@ def Monomial_list_coord_value():
 
     return Monomial_list
 
-every_single_monomial_combination_tuple = Monomial_list_coord_value()
+every_single_monomial_combination_tuple = Monomial_list_coord_value(k)
 #print(every_single_monomial_combination_tuple[2])
 
 
@@ -408,9 +397,14 @@ every_single_monomial_combination_tuple = Monomial_list_coord_value()
 # First factor given by:
 
 def weight_list():
+
+    cont = container
+    detlist = determinant_list
+
     weight_list = []
+
     for i in range(len(sample)):
-        w = 1 / (25 * (abs(container[i]) ** 8) * (determinant_list[i]))
+        w = 1 / (25 * (abs(cont[i]) ** 8) * (detlist[i]))
         weight_list.append(w)
     return weight_list
 
@@ -418,7 +412,9 @@ w_M_list = weight_list()
 
 def first_factor(N_k):
 
-    Vol_CY = (1/len(sample)) * sum(w_M_list[i] for i in range(len(sample)))
+    wml = w_M_list
+
+    Vol_CY = (1/len(sample)) * sum(wml[i] for i in range(len(sample)))
     first_fact = (N_k)/(Vol_CY)
 
     return first_fact
@@ -437,10 +433,10 @@ ff = first_factor(N_k)
 def section_vector_list():
 
     section_vec_list = []
-
+    esmct = every_single_monomial_combination_tuple
     for i in range(len(sample)):
         aid_list = []
-        x = every_single_monomial_combination_tuple[i]
+        x = esmct[i]
         s = np.zeros(N_k, dtype=complex)
 
         for j in range(N_k):
@@ -463,10 +459,11 @@ def section_matrix_generator():
 
     section_matrix_list = []
 
+    secvl = svl
 
     for f in range(len(sample)):
         B = np.zeros((N_k,N_k), dtype=complex)
-        s = svl[f]
+        s = secvl[f]
         A = np.einsum('i,j->ij', s,np.matrix.conj(s))
         C = A + B
         for i in range(N_k):
@@ -485,10 +482,13 @@ sfm = section_matrix_generator()
 
 def second_factor_weight_and_num():
 
+    wml = w_M_list
+    secmatrixgen = sfm
+
     selection_iteration_term = []
 
     for i in range(len(sample)):
-        term = w_M_list[i] * sfm[i]
+        term = wml[i] * secmatrixgen[i]
         selection_iteration_term.append(term)
 
     return selection_iteration_term
@@ -504,6 +504,9 @@ sfwad = second_factor_weight_and_num()
 
 def sum_over_h_second_factor():
 
+    wml = w_M_list
+    secmatrixgen = sfm
+
     h = np.eye(N_k, dtype=complex)
     #h = np.array([[1, 1j, -1, -1j, 0],
                         #[-1j, 1, 1j, -1, 0],
@@ -512,7 +515,7 @@ def sum_over_h_second_factor():
                        # [0, 0, 0, 0, 1]], dtype=complex)
 
 
-    factor = sum((( sfm[i] * w_M_list[i]) / (np.einsum("mn,mn",np.linalg.inv(h),sfm[i])) ) for i in range(len(sample)) )
+    factor = sum((( sfm[i] * wml[i]) / (np.einsum("mn,mn",np.linalg.inv(h),secmatrixgen[i])) ) for i in range(len(sample)) )
     #print(factor)
     return factor
 
@@ -522,15 +525,18 @@ sohsf = sum_over_h_second_factor()
 #print(sohsf.shape)
 
 
-def T_map_function():
+def T_map_function(ff, sohsf):
+
+    wml = w_M_list
+    secmatrixgen = sfm
 
     T_map = ff * sohsf
 
-    for _ in range(10): # Input here how many times to iterate the T_map
-        T_map =  ff * sum( (sfm[i] * w_M_list[i])/ (np.einsum("mn,mn",np.transpose(np.linalg.inv(T_map)),sfm[i])) for i in range(len(sample)) )
+    for _ in range(2): # Input here how many times to iterate the T_map
+        T_map =  ff * sum( (secmatrixgen[i] * wml[i])/ (np.einsum("mn,mn",np.transpose(np.linalg.inv(T_map)),secmatrixgen[i])) for i in range(len(sample)) )
     return T_map
 
-T_map = T_map_function()
+T_map = T_map_function(ff, sohsf)
 
 #print(T_map)
 #print(T_map.shape)
@@ -558,7 +564,7 @@ print(h_new)
 # k = 1
 # Iteration times = 20
 
-N_t = 10000
+N_t = 40000
 
 def error_vol_CY(N_t):
     # Just like above here pick the desired N_k value over which the T-map should operate.
@@ -567,6 +573,7 @@ def error_vol_CY(N_t):
 
 EVCY = error_vol_CY(N_t)
 #print(EVCY)
+
 
 def Volume_form_builder():
 
