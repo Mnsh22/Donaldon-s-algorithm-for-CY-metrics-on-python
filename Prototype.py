@@ -4,13 +4,13 @@
 import numpy as np
 import math
 from itertools import combinations_with_replacement
-from numba import njit
+from time import perf_counter
 
 # STEP 1: Generate random points on the quintic,
 
 # random points on unit 9-sphere corresponds to sample points in CP^4.
 # Hence we generate random points on S9 via following function.
-
+t1 = perf_counter()
 def sample_point_C5_on_unit_sphere():
 
     v = np.random.randn(5) + 1j*np.random.randn(5)
@@ -86,7 +86,7 @@ def generate_quintic_points(p_M_points):
 
     return np.array(points)  # shape: (n_points, 5)
 
-sample = generate_quintic_points(70000) ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
+sample = generate_quintic_points(50010) ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
 
 
 #print("Shape:", sample.shape)  # (1000, 5)
@@ -536,7 +536,7 @@ def T_map_function():
 
     T_map = ff * sohsf
 
-    for _ in range(30): # Input here how many times to iterate the T_map
+    for _ in range(10): # Input here how many times to iterate the T_map
         T_map =  ff * sum( (sfm[i] * w_M_list[i])/ (np.einsum("mn,mn",np.transpose(np.linalg.inv(T_map)),sfm[i])) for i in range(len(sample)) )
     return T_map
 
@@ -547,7 +547,7 @@ T_map = T_map_function()
 
 h_new = np.transpose(np.linalg.inv(T_map))
 
-#print(h_new.shape)
+print(h_new)
 
 
 
@@ -568,7 +568,7 @@ h_new = np.transpose(np.linalg.inv(T_map))
 # k = 1
 # Iteration times = 20
 
-N_t = 60000
+N_t = 50000
 
 def error_vol_CY(N_t):
     # Just like above here pick the desired N_k value over which the T-map should operate.
@@ -593,6 +593,9 @@ OmOmbar_list = Volume_form_builder()
 # My idea is for now to build a code that would be good enough so that people can just change what can be calculated
 # analytically. The idea is that to compute the metric g, one needs information about derivatives of polynomial.
 # For k less 2 one can do them by hand, but more is jarring so still need to find a way.
+
+
+
 
 I = np.eye(5, dtype= complex) # compute a matrix for d_i s_alpha and in this case since d_jbar s_betabar
 # is the same then dw
@@ -693,18 +696,21 @@ EVK = error_Vol_K()
 
 
 def sigma_builder():
-    factor = 0
-    for i in range(N_t):
-        factor = factor + (abs(1-((det_metroboomin_list[i]/EVK)/((OmOmbar_list[i])/EVCY)))) * w_M_list[i]
-        #print(factor) #it somehow converges proper quick. No matter what
-    sigma = (1/(N_t*EVCY)) * factor
+
+    sigma = (1/(N_t*EVCY)) * sum((abs(1-((det_metroboomin_list[i]/EVK)/((OmOmbar_list[i])/EVCY)))) * w_M_list[i] for i in range(N_t))
     return sigma
 
 sigma = sigma_builder()
 
 print(sigma)
 
+print(abs(EVK/EVCY))
 
+t2 = perf_counter()
+
+print("Elapsed time:", t2, t1)
+
+print("Elapsed time during the whole program in seconds:",t2-t1)
 
 
 
