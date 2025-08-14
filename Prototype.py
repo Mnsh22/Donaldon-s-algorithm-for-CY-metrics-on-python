@@ -385,7 +385,7 @@ determinant_list = determinant_builder(extras)
 # We first define the monomials of the map.
 
 n = 5  # number of coordinates we are considering
-k = 5  # order polynomial we are considering
+k = 1  # order polynomial we are considering
 
 #def N_k_builder():
 N_k = math.comb(n + k - 1, k) #we looking at k less than 5 anyways, remember that for k>5 need to remove dof
@@ -456,7 +456,7 @@ def section_vector_list():
 
         for j in range(N_k):
             y = list(x[j])
-            prod = y[0]*y[1]*y[2]*y[3]*y[4]
+            prod = y[0]
             # cause y a tuple and not int
             aid_list.append(prod)
 
@@ -604,13 +604,13 @@ def derivative_section_matrix_builder():
     variables = [z0, z1, z2, z3, z4]
 
     # all degree-5 monomials (126 of them)
-    gh = list(combinations_with_replacement(variables, 5))
+    gh = list(combinations_with_replacement(variables, k))
 
     # products for each 5-tuple
     some_list = []
     for j in range(len(gh)):
         y = gh[j]
-        prod = y[0] * y[1] * y[2] * y[3] * y[4] #each s_alpha element
+        prod = y[0] #each s_alpha element
         some_list.append(prod)
 
     rows = len(some_list)  # 126
@@ -626,9 +626,9 @@ def derivative_section_matrix_builder():
 
     # make a list of d_i_s_alpha for each point p_M
     ds_list = []
-    for x in range(len(sample)):
+    for x in range(N_t):
         coord = coordinates_for_every_p_M[x]
-        A_num = np.empty((rows, cols), dtype=float)
+        A_num = np.empty((rows, cols), dtype=complex)
         for j in range(rows):
             for i in range(cols):
                 expr = A[j, i]
@@ -646,7 +646,7 @@ def derivative_section_matrix_builder():
 
 ds_list = derivative_section_matrix_builder()
 
-print(ds_list[126])
+print(ds_list[3])
 
 
 
@@ -665,7 +665,7 @@ def K_ij_builder():
     K_ij_list = []
 
     for i in range(N_t):
-        k_ijbar = np.einsum('ia,ab,bj -> ij', I,h_new,I)
+        k_ijbar = np.einsum('ia,ab,bj -> ij', ds_list[i],h_new,np.conj(ds_list[i]))
         K_ij_list.append(k_ijbar)
     return K_ij_list
 
