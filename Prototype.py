@@ -566,20 +566,21 @@ print(h_new)
 
 N_t = 40000
 
-def error_vol_CY(N_t):
+def error_vol_CY(N_t, w_M_list):
     # Just like above here pick the desired N_k value over which the T-map should operate.
     Evcy = (1/N_t) * sum(w_M_list[i] for i in range(N_t))
     return Evcy
 
-EVCY = error_vol_CY(N_t)
+EVCY = error_vol_CY(N_t, w_M_list)
 #print(EVCY)
 
 
 def Volume_form_builder():
 
     volume_form_list = []
+    cont = container
     for i in range(N_t):
-        OmOmbar = (5 ** (-2)) * ((abs(container[i]))**(-8))
+        OmOmbar = (5 ** (-2)) * ((abs(cont[i]))**(-8))
         volume_form_list.append(OmOmbar)
     return volume_form_list
 
@@ -590,7 +591,7 @@ OmOmbar_list = Volume_form_builder()
 # My idea is for now to build a code that would be good enough so that people can just change what can be calculated
 # analytically. The idea is that to compute the metric g, one needs information about derivatives of polynomial.
 # For k less 2 one can do them by hand, but more is jarring so still need to find a way.
-
+tone = perf_counter()
 def derivative_section_matrix_builder():
     z0 = sp.Symbol('z0')
     z1 = sp.Symbol('z1')
@@ -599,14 +600,14 @@ def derivative_section_matrix_builder():
     z4 = sp.Symbol('z4')
     variables = [z0, z1, z2, z3, z4]
 
-    # all degree-5 monomials (126 of them)
+    # list of all degree-5 monomials (126 of them)
     gh = list(combinations_with_replacement(variables, k))
 
     # products for each 5-tuple
     some_list = []
     for j in range(len(gh)):
         y = gh[j]
-        prod = y[0] #each s_alpha element
+        prod = y[0] #each s_alpha element (for each higher k add another product)
         some_list.append(prod)
 
     rows = len(some_list)  # 126
@@ -618,12 +619,11 @@ def derivative_section_matrix_builder():
         for i in range(cols):
             A[j, i] = sp.diff(some_list[j], variables[i])
 
-
-
     # make a list of d_i_s_alpha for each point p_M
     ds_list = []
+    cfepm = coordinates_for_every_p_M
     for x in range(N_t):
-        coord = coordinates_for_every_p_M[x]
+        coord = cfepm[x]
         A_num = np.empty((rows, cols), dtype=complex)
         for j in range(rows):
             for i in range(cols):
@@ -642,26 +642,22 @@ def derivative_section_matrix_builder():
 
 ds_list = derivative_section_matrix_builder()
 
-print(ds_list[3])
+ttwo = perf_counter()
+
+print(ds_list[0]-ds_list[4])
 
 
 
 
 
-
-
-
-
-
-
-I = np.eye(5, dtype= complex) # compute a matrix for d_i s_alpha and in this case since d_jbar s_betabar
-# is the same then dw
 
 def K_ij_builder():
     K_ij_list = []
+    h = h_new
+    ds = ds_list
 
     for i in range(N_t):
-        k_ijbar = np.einsum('ia,ab,bj -> ij', ds_list[i],h_new,np.conj(ds_list[i]))
+        k_ijbar = np.einsum('ia,ab,bj -> ij', ds[i],h,np.conj(ds[i]))
         K_ij_list.append(k_ijbar)
     return K_ij_list
 
@@ -669,8 +665,11 @@ K_ijbar_list = K_ij_builder()
 
 def K_0_builder():
     k_0_list = []
+    h = h_new
+    secmatrixgen = sfm
+
     for i in range(N_t):
-        k_0 = 1 / ( np.einsum("mn,mn", h_new, sfm[i]) )
+        k_0 = 1 / ( np.einsum("mn,mn", h, secmatrixgen[i]) )
         k_0_list.append(k_0)
     return k_0_list
 
@@ -679,25 +678,13 @@ K_0_list = K_0_builder()
 
 def K_i_builder():   # NBBBBBB found a way of storing s_alphas as a list of vectors really useful to generalise
     k_i_list = []
-    helping_list = []
-    for i in range(N_t):
-        aid_list = []
-        x = every_single_monomial_combination_tuple[i]
-        A = np.zeros(N_k, dtype=complex)
 
-        for j in range(N_k):
-            y = list(x[j])
-            prod = y[0] #*y[1] if k=2. *y[1]*y[2] if k=3 and so on. Note that this is even for k=1
-            # cause y a tuple and not int
-            aid_list.append(prod)
-
-        for r in range(N_k): # this is supposed to be s_alpha vectors
-            A[r] = aid_list[r]
-
-        helping_list.append(A)
+    secveclist = svl
+    h = h_new
+    ds = ds_list
 
     for f in range(N_t):
-        k_i = np.einsum('ij,jk,k->i', h_new, I, helping_list[f])
+        k_i = np.einsum('i,ij,kj->k', secveclist[f], h, np.conj(ds[f]))
 
         k_i_list.append(k_i)
 
@@ -705,7 +692,7 @@ def K_i_builder():   # NBBBBBB found a way of storing s_alphas as a list of vect
 
 K_i_list = K_i_builder()
 
-#print(K_i_list[3].shape)
+print(K_i_list[3].shape)
 
 
 
@@ -722,7 +709,7 @@ def metric_list():
 
 metroboomin = metric_list()
 
-#print(metroboomin[2]-metroboomin[499])
+print(metroboomin[2])
 
 def actual_determinant_builder():
 
@@ -769,7 +756,9 @@ print("Elapsed time:", t2, t1)
 
 print("Elapsed time during the whole program in seconds:",t2-t1)
 
+print("Big chungus piece:", ttwo, tone)
 
+print("Elapsed time during big chunges in seconds:",ttwo-tone)
 
 
 

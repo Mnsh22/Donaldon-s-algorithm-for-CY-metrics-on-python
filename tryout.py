@@ -62,3 +62,13 @@ sample = generate_quintic_points(p_M_points)
 t2 = perf_counter()
 print(t2-t1)
 print(sample)
+
+a = np.array([1,2,3])
+b = np.array([[1,0,0],
+              [0,1,0],
+              [0,0,1]])
+c = np.array([[1,0,0],
+              [0,1,0]])
+
+q = np.einsum('i,ij,kj->k', a,b,c)
+print(q)
