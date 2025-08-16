@@ -367,16 +367,16 @@ determinant_list = determinant_builder(extras)
 # We first define the monomials of the map.
 
 n = 5  # number of coordinates we are considering
-k = 1  # order polynomial we are considering
+K = 2  # order polynomial we are considering
 
 #def N_k_builder():
-N_k = math.comb(n + k - 1, k) #we looking at k less than 5 anyways, remember that for k>5 need to remove dof
+N_k = math.comb(n + K - 1, K) #we looking at k less than 5 anyways, remember that for k>5 need to remove dof
 
 #print(N_k)
 
 #creating a function that generates the list of monomials combination for a given k (user's choice)
 
-def Monomial_list_coord_value(k):
+def Monomial_list_coord_value():
 
     cfepm = coordinates_for_every_p_M
 
@@ -385,13 +385,13 @@ def Monomial_list_coord_value(k):
     for i in range(len(sample)):
         z = cfepm[i]
         variables = [z[0],z[1],z[2],z[3],z[4]]
-        combo = combinations_with_replacement(variables, k)
+        combo = combinations_with_replacement(variables, K) #change 612 line too
         gh = list(combo)
         Monomial_list.append(gh)
 
     return Monomial_list
 
-every_single_monomial_combination_tuple = Monomial_list_coord_value(k)
+every_single_monomial_combination_tuple = Monomial_list_coord_value()
 #print(every_single_monomial_combination_tuple[2])
 
 
@@ -448,7 +448,7 @@ def section_vector_list():
 
         for j in range(N_k):
             y = list(x[j])
-            prod = y[0]
+            prod = y[0]*y[1]
             # cause y a tuple and not int
             aid_list.append(prod)
 
@@ -548,7 +548,7 @@ def T_map_function(ff, sohsf):
 T_map = T_map_function(ff, sohsf)
 
 #print(T_map)
-#print(T_map.shape)
+print(T_map.shape)
 
 h_new = np.transpose(np.linalg.inv(T_map))
 
@@ -609,16 +609,17 @@ def derivative_section_matrix_builder():
     variables = [z0, z1, z2, z3, z4]
 
     # list of all degree-5 monomials (126 of them)
-    gh = list(combinations_with_replacement(variables, 1))
+    combo = combinations_with_replacement(variables, K)  # change 612 line too
+    gh = list(combo)
 
     some_list = [] # S_alpha basically
     for j in range(len(gh)):
         y = gh[j]
-        prod = y[0] #each s_alpha element (for each higher k add another product)
+        prod = y[0]*y[1] #each s_alpha element (for each higher k add another product)
         some_list.append(prod)
 
-    rows = len(some_list)  # 5
-    cols = len(variables)  # 5
+    rows = len(variables)  # 5
+    cols = len(some_list)  # N_k
 
     tone = perf_counter()
 
@@ -628,15 +629,15 @@ def derivative_section_matrix_builder():
     for x in range(N_t):
 
         coord = cfepm[x]
-        A_num = np.empty((rows, cols), dtype=complex)
+        A_num = np.empty((rows, cols), dtype=complex) #5, N_k
         A = np.empty((rows, cols), dtype=object)
-        B = np.empty((rows, cols, cols), dtype=object)
-        B_num = np.empty((rows, cols, cols), dtype=float)
+        B = np.empty((rows, rows, cols), dtype=object) #5,5,N_k
+        B_num = np.empty((rows, rows, cols), dtype=float)
 
-        for j in range(rows):
-            for i in range(cols):
-                A[j, i] = sp.diff(some_list[j], variables[i]) # derivative matrix A (symbolic)
-                expr = A[j, i]
+        for i in range(rows):
+            for j in range(cols):
+                A[i, j] = sp.diff(some_list[j], variables[i]) # derivative matrix A (symbolic)
+                expr = A[i, j]
                 value = (
                     expr
                     .subs(z0, coord[0])
@@ -645,10 +646,10 @@ def derivative_section_matrix_builder():
                     .subs(z3, coord[3])
                     .subs(z4, coord[4])
                         )
-                A_num[j, i] = float(value)
-                for k in range(cols):
-                    B[j, i, k] = sp.diff(A[j, i], variables[k])
-                    expr = B[j, i, k]
+                A_num[i, j] = complex(value)
+                for k in range(rows):
+                    B[k, i, j] = sp.diff(A[i, j], variables[k])
+                    expr = B[k, i, j]
                     value = (
                         expr
                         .subs(z0, coord[0])
@@ -657,7 +658,7 @@ def derivative_section_matrix_builder():
                         .subs(z3, coord[3])
                         .subs(z4, coord[4])
                             )
-                    B_num[j, i, k] = float(value)
+                    B_num[k, i, j] = complex(value)
 
 
         ds_list.append(A_num)
@@ -685,11 +686,11 @@ print(dds_list[0])
 
 def K_ij_builder():
     K_ij_list = []
-    h = h_new
-    ds = ds_list
+    h = h_new #N_k,N_k
+    ds = ds_list #5,N_k
 
     for i in range(N_t):
-        k_ijbar = np.einsum('ia,ab,bj -> ij', ds[i],h,np.conj(ds[i]))
+        k_ijbar = np.einsum('ia,ab,jb -> ij', ds[i],h,np.conj(ds[i]))
         K_ij_list.append(k_ijbar)
     return K_ij_list
 
@@ -697,8 +698,8 @@ K_ijbar_list = K_ij_builder()
 
 def K_0_builder():
     k_0_list = []
-    h = h_new
-    secmatrixgen = sfm
+    h = h_new #N_k,N_k
+    secmatrixgen = sfm #N_k,N_k
 
     for i in range(N_t):
         k_0 = 1 / ( np.einsum("mn,mn", h, secmatrixgen[i]) )
@@ -711,9 +712,9 @@ K_0_list = K_0_builder()
 def K_i_builder():   # NBBBBBB found a way of storing s_alphas as a list of vectors really useful to generalise
     k_i_list = []
 
-    secveclist = svl
-    h = h_new
-    ds = ds_list
+    secveclist = svl #N_k
+    h = h_new #N_K,N_k
+    ds = ds_list #5,N_k
 
     for f in range(N_t):
         k_i = np.einsum('i,ij,kj->k', secveclist[f], h, np.conj(ds[f]))
@@ -734,7 +735,7 @@ def metric_list():
     metric_list = []
 
     for i in range(N_t): # from notes ML 4CY
-        g = (1/(k * np.pi))* ( (K_0_list[i] * K_ijbar_list[i]) - ( ((K_0_list[i])*(K_0_list[i])) * np.outer(K_i_list[i], np.matrix.conj(K_i_list[i])) ) )
+        g = (1/(K * np.pi))* ( (K_0_list[i] * K_ijbar_list[i]) - ( ((K_0_list[i])*(K_0_list[i])) * np.outer(K_i_list[i], np.matrix.conj(K_i_list[i])) ) )
 
         metric_list.append(g)
 
@@ -749,12 +750,11 @@ def actual_determinant_builder():
     determinant_pullback_list = []
 
     for i in range(N_t):
-        g = metroboomin[i]
-        J = Jack[i]
-        Jt = np.matrix_transpose(J)
-        Jtbar = np.conjugate(Jt)
+        g = metroboomin[i] #5,5
+        J = Jack[i] #3,5
+        Jbar = np.conj(J)
 
-        pullback = np.einsum('ia,ab,bj -> ij', J,g,Jtbar)
+        pullback = np.einsum('ia,ab,jb -> ij', J,g,Jbar)
 
         det = np.linalg.det(pullback)
 
@@ -789,11 +789,11 @@ print(abs(EVK/EVCY))
 def K_ijk_builder():
 
     listy = []
-    h = h_new
-    ds = ds_list
-    dds = dds_list
+    h = h_new # N_k, N_k
+    ds = ds_list # 5, N_k
+    dds = dds_list # 5, 5, N_k
     for i in range(N_t):
-        K_ijk = np.einsum('ij,kli,mj -> klm', np.linalg.inv(h),dds[i],ds[i])
+        K_ijk = np.einsum('mn,ijm,kn -> ijk', np.linalg.inv(h),dds[i],np.matrix.conj(ds[i]))
         listy.append(K_ijk)
 
     return listy
@@ -802,11 +802,11 @@ K_ijk_list = K_ijk_builder()
 
 def K_ij_builder():
     listy = []
-    h = h_new
-    dds = dds_list
-    s = svl
+    h = h_new #N_k,N_k
+    dds = dds_list #5,5,N_k
+    s = svl #N_k
     for i in range(N_t):
-        K_ij = np.einsum('ij, kli, j -> kl', np.linalg.inv(h), dds[i], np.matrix.conj(s[i]))
+        K_ij = np.einsum('mn, ijm, n -> ij', np.linalg.inv(h), dds[i], np.matrix.conj(s[i]))
         listy.append(K_ij)
     return listy
 
@@ -819,7 +819,7 @@ def derivative_metric_builder():
     K_0 = K_0_list
 
     for i in range(N_t):
-        di_gkl = (1/(np.pi*k)) * (-((K_0[i])**2)*((np.einsum('i,jk->ijk', K_i_list[i],K_ijbar_list[i]))
+        di_gkl = (1/(np.pi*K)) * (-((K_0[i])**2)*((np.einsum('i,jk->ijk', K_i_list[i],K_ijbar_list[i]))
         + (np.einsum('j, ik -> ijk', K_i_list[i],K_ijbar_list[i]))
         + (np.einsum('k, ij -> ijk', np.matrix.conj(K_i_list[i]),K_ij[i])))
 
@@ -835,10 +835,10 @@ deriv_metric = derivative_metric_builder()
 
 def K_ijkl_builder():
     listy = []
-    h = h_new
-    dds = dds_list
+    h = h_new #N_k,N_K
+    dds = dds_list #5,5,N_k
     for i in range(N_t):
-        K_ijkl = np.einsum('ij,kli,mnj -> klmn', np.linalg.inv(h), dds[i], np.matrix.conj(dds[i]))
+        K_ijkl = np.einsum('mn,ikm,jln -> ijkl', np.linalg.inv(h), dds[i], np.matrix.conj(dds[i]))
         listy.append(K_ijkl)
 
     return listy
@@ -857,7 +857,7 @@ def double_derivative_metric_builder():
     K_ij = K_ij_list
 
     for i in range(N_t):
-        didj_gkl = ((1/(np.pi*k)) *
+        didj_gkl = ((1/(np.pi*K)) *
                     ( ((K_0[i]) * (K_ijkl[i]))
                     - ((K_0[i])**2) * ((np.einsum('ij,kl->ijkl', K_ijbar[i], K_ijbar[i]))
                     + (np.einsum('ik,jl->ijkl', K_ij[i], np.matrix.conj(K_ij[i])))
@@ -901,7 +901,7 @@ def pullback_deriv_metric():
     listy = []
     dJ = deriv_Jack  # 5,3,5
     J = Jack  # 3, 5
-    g = metroboomin
+    g = metroboomin # 5,5
     dg = deriv_metric  # 5,5,5
     for i in range(N_t):
         dig_CY = ( np.einsum('iam,mn,bn -> iab', dJ[i], g[i], np.matrix.conj(J[i]))
@@ -917,7 +917,7 @@ def pullback_double_deriv_metric():
     J = Jack # 3, 5
     g = metroboomin
     dg = deriv_metric # 5,5,5
-    ddg = double_deriv_met_list
+    ddg = double_deriv_met_list #5,5,5,5
     for i in range(N_t):
         didjg_CY = (np.einsum('iam,jmn,bn -> ijab', dJ[i], dg[i], np.matrix.conj(J[i]))
                     + np.einsum('am,ijmn,bn -> ijab', J[i], ddg[i], np.matrix.conj(J[i]))

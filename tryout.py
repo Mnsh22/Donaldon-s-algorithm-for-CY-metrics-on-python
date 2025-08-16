@@ -1,74 +1,91 @@
-import numpy as np
-import sympy as sp
-import math
 from itertools import combinations_with_replacement
+import sympy as sp
+import numpy as np
 from time import perf_counter
+# symbols
 
-t1 = perf_counter()
-def sample_point_C5_on_unit_sphere():
+x1 = sp.Symbol('x1')
+x2 = sp.Symbol('x2')
+x3 = sp.Symbol('x3')
+x4 = sp.Symbol('x4')
+x5 = sp.Symbol('x5')
+variables = [x1, x2, x3, x4, x5]
 
-    v = np.random.randn(5) + 1j*np.random.randn(5)
-    vec = v / np.linalg.vector_norm(v)
-    return vec
+    # all degree-5 monomials (126 of them)
+gh = list(combinations_with_replacement(variables, 5))
 
-v = sample_point_C5_on_unit_sphere()
+    # products for each 5-tuple
+some_list = []
+for j in range(len(gh)):
+    y = gh[j]
+    prod = y[0]*y[1]*y[2]*y[3]*y[4]
+    some_list.append(prod)
 
-def projected_S9_point_onto_coord_of_CP4(v):
-    w = np.exp(- 1j * np.angle(v[4])) * v
-    return w
+rows = len(some_list)   # 126
+cols = len(variables)   # 5
 
-def find_quintic_roots():
-    v1 = sample_point_C5_on_unit_sphere()
-    v2 = sample_point_C5_on_unit_sphere()
-    p = projected_S9_point_onto_coord_of_CP4(v1)
-    q = projected_S9_point_onto_coord_of_CP4(v2)
+    # derivative matrix A (symbolic)
+A = np.empty((rows, cols), dtype=object)
+for j in range(rows):
+    for i in range(cols):
+        A[j, i] = sp.diff(some_list[j], variables[i])
+
+    # substitute x1=1, x2=2, x3=3, x4=4, x5=5  -> numeric array
+A_num = np.empty((rows, cols), dtype=float)
+for j in range(rows):
+    for i in range(cols):
+        expr = A[j, i]
+        value = (
+            expr
+            .subs(x1, 1)
+            .subs(x2, 2)
+            .subs(x3, 3)
+            .subs(x4, 4)
+            .subs(x5, 5)
+            )
+        A_num[j, i] = float(value)
 
 
-    polynomial = np.zeros(6, dtype=complex)
+B = np.empty((126,5,5), dtype=object)
+B_num = np.empty((rows, cols, cols), dtype=float)
+for j in range(rows):
+    for i in range(cols):
+        for k in range(cols):
+            B[j, i, k] = sp.diff(A[j, i], variables[k])
+            expr = B[j,i,k]
+            value = (
+                expr
+                .subs(x1, 1)
+                .subs(x2, 2)
+                .subs(x3, 3)
+                .subs(x4, 4)
+                .subs(x5, 5)
+                )
+            B_num[j, i, k] = float(value)
 
-    for k in range(6):
-        polynomial[k] = sum(math.comb(5, k) * (p[i] ** (5 - k)) * (q[i] ** k) for i in range(5))
 
-    roots = np.roots(polynomial[::-1])
+# quick sanity checks
+print(B_num.shape)      # (126, 5)
+print(B_num)         # first row should be [5., 0., 0., 0., 0.]
 
-    return roots, p, q
 
-quintic_root_builder = find_quintic_roots()
 
-p_M_points = 10100
-def generate_quintic_points(p_M_points):
-    points = []
-    local_find_q_roots = quintic_root_builder
-    while len(points) < p_M_points:
-        roots, p, q = local_find_q_roots
+dJ = np.arange(75).reshape(5,3,5)
+dg = np.arange(125).reshape(5,5,5)
+ddg = np.arange(625).reshape(5,5,5,5)
+J = np.arange(15).reshape(3,5)
+g = np.eye(5)+1j*np.eye(5)
+cool = np.matrix.conj(g)
+Tr = np.trace(g, dtype=complex)
+i = np.einsum("mn,mn", g,g)
 
-        for t in roots:
-            z = p + t * q
-            z /= np.linalg.norm(z)
+P = np.zeros((15,5,5), dtype=complex)
+for i in range(15):
+    for j in range(5):
+        for k in range(5):
+            P[i ,j, k] = 1
 
-            Qz = np.sum(z ** 5)
-            if np.abs(Qz) > 1e-16:  # threshold
-               continue
+print(P.shape)
 
-            points.append(z)
+print(np.arange(15).reshape(3,5))
 
-        if len(points) >= p_M_points:
-            break
-
-    return np.array(points)
-
-sample = generate_quintic_points(p_M_points)
-
-t2 = perf_counter()
-print(t2-t1)
-print(sample)
-
-a = np.array([1,2,3])
-b = np.array([[1,0,0],
-              [0,1,0],
-              [0,0,1]])
-c = np.array([[1,0,0],
-              [0,1,0]])
-
-q = np.einsum('i,ij,kj->k', a,b,c)
-print(q)
