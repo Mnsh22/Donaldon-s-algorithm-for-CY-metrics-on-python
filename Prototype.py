@@ -15,8 +15,8 @@ from time import perf_counter
 t1 = perf_counter()
 def sample_point_C5_on_unit_sphere():
 
-    v = np.random.rand(5) + 1j*np.random.rand(5)
-    vec = v / np.linalg.vector_norm(v)
+    v = np.random.randn(5) + 1j*np.random.randn(5)
+    vec = v / np.linalg.norm(v)
     return vec
 
 v = sample_point_C5_on_unit_sphere()
@@ -573,7 +573,7 @@ print(h_new)
 # k = 1
 # Iteration times = 20
 
-N_t = 40000
+N_t = 30000
 
 def error_vol_CY(N_t, w_M_list):
     # Just like above here pick the desired N_k value over which the T-map should operate.
@@ -632,7 +632,7 @@ def derivative_section_matrix_builder():
         A_num = np.empty((rows, cols), dtype=complex) #5, N_k
         A = np.empty((rows, cols), dtype=object)
         B = np.empty((rows, rows, cols), dtype=object) #5,5,N_k
-        B_num = np.empty((rows, rows, cols), dtype=float)
+        B_num = np.empty((rows, rows, cols), dtype=complex)
 
         for i in range(rows):
             for j in range(cols):

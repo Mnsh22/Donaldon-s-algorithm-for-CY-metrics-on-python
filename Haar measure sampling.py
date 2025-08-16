@@ -3,7 +3,6 @@
 # Step 2: Construct T-map
 import numpy as np
 import sympy as sp
-import numba as nb
 import math
 from itertools import combinations_with_replacement
 from time import perf_counter
@@ -15,8 +14,8 @@ from time import perf_counter
 t1 = perf_counter()
 def sample_point_C5_on_unit_sphere():
 
-    v = np.random.rand(5) + 1j*np.random.rand(5)
-    vec = v / np.linalg.vector_norm(v)
+    v = np.random.randn(5) + 1j*np.random.randn(5)
+    vec = v / np.linalg.norm(v)
     return vec
 
 v = sample_point_C5_on_unit_sphere()
@@ -75,7 +74,7 @@ def generate_quintic_points(p_M_points):
             if np.abs(Qw) > 1e-15:  # threshold
                continue
 
-        points.append(z)
+            points.append(z)
 
         if len(points) >= p_M_points: # limit of the while loop.
             break
@@ -210,7 +209,7 @@ def extra_coordinates_fixing(coord_fix_fn, extras):
     return coord_fix_fn
 
 coordinates_for_every_p_M = extra_coordinates_fixing(coord_fix_fn, extras)
-print(coordinates_for_every_p_M[1], coordinates_for_every_p_M[4])
+#print(coordinates_for_every_p_M[1], coordinates_for_every_p_M[4])
 
 # Seems to work, by checking print(coord_fixing(sample)) and print(extras) the only no that should change from the first
 # of the two print should be the component given by print(extras), and it matches, so should be right.
@@ -325,7 +324,7 @@ def metric_builder(fixed):
 
 metrics_at_each_p_M = metric_builder(fixed)
 
-print(metrics_at_each_p_M[1]-metrics_at_each_p_M[998])
+#print(metrics_at_each_p_M[1]-metrics_at_each_p_M[998])
 
 
 
@@ -367,7 +366,7 @@ determinant_list = determinant_builder(extras)
 # We first define the monomials of the map.
 
 n = 5  # number of coordinates we are considering
-K = 2  # order polynomial we are considering
+K = 1  # order polynomial we are considering
 
 #def N_k_builder():
 N_k = math.comb(n + K - 1, K) #we looking at k less than 5 anyways, remember that for k>5 need to remove dof
@@ -448,7 +447,7 @@ def section_vector_list():
 
         for j in range(N_k):
             y = list(x[j])
-            prod = y[0]*y[1]
+            prod = y[0]
             # cause y a tuple and not int
             aid_list.append(prod)
 
@@ -462,7 +461,7 @@ def section_vector_list():
 
 svl = section_vector_list()
 
-print(svl[0]-svl[4])
+#print(svl[0]-svl[4])
 
 def section_matrix_generator():
 
@@ -541,7 +540,7 @@ def T_map_function(ff, sohsf):
 
     T_map = ff * sohsf
 
-    for _ in range(2): # Input here how many times to iterate the T_map
+    for _ in range(10): # Input here how many times to iterate the T_map
         T_map =  ff * sum( (secmatrixgen[i] * wml[i])/ (np.einsum("mn,mn",np.transpose(np.linalg.inv(T_map)),secmatrixgen[i])) for i in range(len(sample)) )
     return T_map
 
@@ -552,7 +551,7 @@ print(T_map.shape)
 
 h_new = np.transpose(np.linalg.inv(T_map))
 
-print(h_new)
+#print(h_new)
 
 
 
@@ -615,7 +614,7 @@ def derivative_section_matrix_builder():
     some_list = [] # S_alpha basically
     for j in range(len(gh)):
         y = gh[j]
-        prod = y[0]*y[1] #each s_alpha element (for each higher k add another product)
+        prod = y[0] #each s_alpha element (for each higher k add another product)
         some_list.append(prod)
 
     rows = len(variables)  # 5
@@ -626,40 +625,18 @@ def derivative_section_matrix_builder():
     ds_list = []
     dds_list = []
     cfepm = coordinates_for_every_p_M
+
     for x in range(N_t):
 
         coord = cfepm[x]
-        A_num = np.empty((rows, cols), dtype=complex) #5, N_k
-        A = np.empty((rows, cols), dtype=object)
-        B = np.empty((rows, rows, cols), dtype=object) #5,5,N_k
-        B_num = np.empty((rows, rows, cols), dtype=float)
 
-        for i in range(rows):
-            for j in range(cols):
-                A[i, j] = sp.diff(some_list[j], variables[i]) # derivative matrix A (symbolic)
-                expr = A[i, j]
-                value = (
-                    expr
-                    .subs(z0, coord[0])
-                    .subs(z1, coord[1])
-                    .subs(z2, coord[2])
-                    .subs(z3, coord[3])
-                    .subs(z4, coord[4])
-                        )
-                A_num[i, j] = complex(value)
-                for k in range(rows):
-                    B[k, i, j] = sp.diff(A[i, j], variables[k])
-                    expr = B[k, i, j]
-                    value = (
-                        expr
-                        .subs(z0, coord[0])
-                        .subs(z1, coord[1])
-                        .subs(z2, coord[2])
-                        .subs(z3, coord[3])
-                        .subs(z4, coord[4])
-                            )
-                    B_num[k, i, j] = complex(value)
+        A_sym = sp.Matrix([[sp.diff(some_list[j], v) for j in range(cols)] for v in variables])
+        A_aid = sp.lambdify(variables, A_sym, 'numpy') #lambdify makes convertion from sympy to numpy faster
+        A_num = np.array(A_aid(*coord), dtype=np.complex128)  # 5,N_k
 
+        B_sym = sp.Array([[[sp.diff(A_sym[i, j], variables[k]) for j in range(cols)] for i in range(rows)] for k in range(rows)])
+        B_aid = sp.lambdify(variables, B_sym, 'numpy')
+        B_num = np.asarray(B_aid(*coord), dtype=np.complex128) # 5,5,N_k
 
         ds_list.append(A_num)
         dds_list.append(B_num)
@@ -670,6 +647,12 @@ def derivative_section_matrix_builder():
 
     print("Elapsed time during big chunges in seconds:", ttwo - tone)
 
+    print(A_num.shape)
+
+    print(type(B_sym))
+    print(B_sym.shape)
+    print(type(B_aid(*coord)))
+
     return ds_list, dds_list
 
 ds_list, dds_list = derivative_section_matrix_builder()
@@ -678,7 +661,6 @@ ttwo = perf_counter()
 
 print(ds_list[0])
 print(dds_list[0])
-
 
 
 
@@ -782,6 +764,14 @@ sigma = sigma_builder()
 print(sigma)
 
 print(abs(EVK/EVCY))
+
+
+
+
+
+
+
+
 
 
 # Now we try make Ricci flat metric
