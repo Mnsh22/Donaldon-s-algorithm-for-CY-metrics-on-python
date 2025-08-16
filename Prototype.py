@@ -383,8 +383,8 @@ def Monomial_list_coord_value(k):
     Monomial_list = []
 
     for i in range(len(sample)):
-        x = cfepm[i]
-        variables = [x[0],x[1],x[2],x[3],x[4]]
+        z = cfepm[i]
+        variables = [z[0],z[1],z[2],z[3],z[4]]
         combo = combinations_with_replacement(variables, k)
         gh = list(combo)
         Monomial_list.append(gh)
