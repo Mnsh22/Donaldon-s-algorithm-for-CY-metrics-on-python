@@ -84,7 +84,7 @@ def generate_quintic_points(p_M_points):
 
     return np.array(points)  # shape: (n_points, 5)
 
-sample = generate_quintic_points(p_M_points=52250) ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
+sample = generate_quintic_points(p_M_points=12250) ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
 
 
 #print("Shape:", sample.shape)  # (1000, 5)
@@ -274,25 +274,28 @@ def Jacobian_matrix():
         # Now under such for i loop i put a for q loop saying that for each i the computer runs through a loop
         # of all 3 rows
             for q in range(3):
-                h = b[q] # I define h to be the first or second or third element of b respectively w/ first,
-                # second or third loop of q. Reason being is cause if i = h then that position in which h is
-                # which is given by q by definition, ie: for the h'th column and q'th row then such component
-                # is equal to 1.
+                h = b[q] # I define h to be the first or second or third element of b respectively
                 m = [x for x in b if x != h]
                 if i == c: # infamous conditions
                     J[q, i] = (-(g[h] ** 4) / (cont[y]) ** 4) #CHECK ABSOLUTE
-
+                    for r in range(5):  ####### WHAT?????
+                        if r == c:
+                            dJ[r, q, i] = (4 * ((g[h] ** 4) / ((cont[y]) ** 5)))
+                        elif r == h:
+                            dJ[r, q, i] = (-4 * (g[h] ** 3) / ((cont[y]) ** 4)) - (4 * (g[h] ** 8) / ((cont[y]) ** 9))
+                        elif r in m:
+                            dJ[r, q, i] = ((-4 * ((g[h] ** 4) * (g[r] ** 4))) / ((cont[y]) ** 9))
 
                 elif i == h:
                     J[q, i] = 1 # infamous conditions
 
-                for r in range(5): ####### WHAT?????
-                    if r == c:
-                        dJ[r, q, i] = (4 * ((g[h] ** 4) / ((cont[y]) ** 5)))
-                    elif r == h:
-                        dJ[r, q, i] = ( -4 * (g[h] ** 3) / ((cont[y]) ** 4)) - (4 * (g[h] ** 8) / ((cont[y]) ** 9))
-                    elif r in m:
-                        dJ[r ,q, i] = (( -4 * ((g[h] ** 4) * (g[r] ** 4))) / ((cont[y]) ** 9))
+                #for r in range(5): ####### WHAT?????
+                    #if r == c:
+                        #dJ[r, q, i] = (4 * ((g[h] ** 4) / ((cont[y]) ** 5)))
+                    #elif r == h:
+                        #dJ[r, q, i] = ( -4 * (g[h] ** 3) / ((cont[y]) ** 4)) - (4 * (g[h] ** 8) / ((cont[y]) ** 9))
+                    #elif r in m:
+                        #dJ[r ,q, i] = (( -4 * ((g[h] ** 4) * (g[r] ** 4))) / ((cont[y]) ** 9))
 
         Jacobians.append(J)
         derivatives_Jacobians.append(dJ)
@@ -387,7 +390,7 @@ determinant_list = determinant_builder()
 # We first define the monomials of the map.
 
 n = 5  # number of coordinates we are considering
-K = 1  # order polynomial we are considering
+K = 3  # order polynomial we are considering
 
 #def N_k_builder():
 N_k = math.comb(n + K - 1, K) #we looking at k less than 5 anyways, remember that for k>5 need to remove dof
@@ -447,7 +450,7 @@ def Monomial_list_coord_value(k):
 
     return Monomial_list
 
-every_single_monomial_combination_tuple = Monomial_list_coord_value(1) #set the K you want here too
+every_single_monomial_combination_tuple = Monomial_list_coord_value(3) #set the K you want here too
 #print(every_single_monomial_combination_tuple[2])
 
 
@@ -531,7 +534,7 @@ print(h_new)
 # k = 1
 # Iteration times = 20
 
-N_t = 40000
+N_t = 10000
 
 def error_vol_CY(N_t, w_M_list):
     # Just like above here pick the desired N_k value over which the T-map should operate.
