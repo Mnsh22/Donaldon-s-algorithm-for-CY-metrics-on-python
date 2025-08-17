@@ -140,7 +140,7 @@ fixed = coordinates_picking(sample)
 
 
 # Following function will set one of the coordinates of the array to 1 according to the function we defined above.
-def coordinates_fixing(sample):
+def coordinates_fixing():
     fix = fixed
     for i in range(len(sample)): # useful trick to assign no 1 to length in order for the list
         b=fix[i] # b is the associated element for the i'th component of the list.
@@ -150,7 +150,7 @@ def coordinates_fixing(sample):
     return sample #really important cause this tells us that such change is stored in the sample, so when calling such
     # function the sample list in this fn has already the 1's substituted into it.
 
-coord_fix_fn = coordinates_fixing(sample) # Need to do it if we wanna define a fn in terms of it.
+coord_fix_fn = coordinates_fixing() # Need to do it if we wanna define a fn in terms of it.
 
 #print(coordinates_fixing(sample)[1]) # just checking if it's right
 #print("Count:", len(coordinates_fixing(sample)), "\n") # again just a check
@@ -199,7 +199,7 @@ extras = extra_trial_picking(coord_fix_fn)
 # That was way more painful that it looked. Anyways now we can build the coordinates fixer.
 def extra_coordinates_fixing(coord_fix_fn, extras):
 
-    for i in range(len(extras)):
+    for i in range(len(sample)):
 
         b = extras[i]
         not_b_indices = [k for k in range(5) if k != b] # just like before but != means not equal so make a list of
@@ -376,23 +376,6 @@ N_k = math.comb(n + K - 1, K) #we looking at k less than 5 anyways, remember tha
 
 #creating a function that generates the list of monomials combination for a given k (user's choice)
 
-def Monomial_list_coord_value():
-
-    cfepm = coordinates_for_every_p_M
-
-    Monomial_list = []
-
-    for i in range(len(sample)):
-        z = cfepm[i]
-        variables = [z[0],z[1],z[2],z[3],z[4]]
-        combo = combinations_with_replacement(variables, K) #change 612 line too
-        gh = list(combo)
-        Monomial_list.append(gh)
-
-    return Monomial_list
-
-every_single_monomial_combination_tuple = Monomial_list_coord_value()
-#print(every_single_monomial_combination_tuple[2])
 
 
 
@@ -430,6 +413,23 @@ ff = first_factor(N_k)
 
 
 
+def Monomial_list_coord_value():
+
+    cfepm = coordinates_for_every_p_M
+    Monomial_list = []
+    variables = [0,1,2,3,4]
+
+    for i in range(len(sample)):
+        z = cfepm[i]
+        variables = [z[0],z[1],z[2],z[3],z[4]]
+        combo = combinations_with_replacement(variables, K) #change 612 line too
+        gh = list(combo)
+        Monomial_list.append(gh)
+
+    return Monomial_list
+
+every_single_monomial_combination_tuple = Monomial_list_coord_value()
+#print(every_single_monomial_combination_tuple[2])
 
 
 
@@ -448,7 +448,7 @@ def section_vector_list():
 
         for j in range(N_k):
             y = list(x[j])
-            prod = y[0]*y[1]
+            prod = np.prod()
             # cause y a tuple and not int
             aid_list.append(prod)
 

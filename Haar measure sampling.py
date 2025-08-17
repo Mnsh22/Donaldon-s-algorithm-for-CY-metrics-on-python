@@ -27,7 +27,8 @@ v = sample_point_C5_on_unit_sphere()
 # complex number of any one component. Ie:
 
 def projected_S9_point_onto_coord_of_CP4(v):
-    w = np.exp(- 1j * np.angle(np.argmax(v))) * v
+    index = np.argmax(abs(v))
+    w = np.exp(- 1j * np.angle(v[index])) * v
     return w
 
 # Now we use the two random points on S9 to define a line in CP^4 intersecting X, Ie: following the polynomial equation.
@@ -81,11 +82,11 @@ def generate_quintic_points(p_M_points):
 
     return np.array(points)  # shape: (n_points, 5)
 
-sample = generate_quintic_points(p_M_points=52250) ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
+sample = generate_quintic_points(p_M_points=50250) ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
 
 
 #print("Shape:", sample.shape)  # (1000, 5)
-#print("Sample point:", sample[0], sample[5]) #I am just checking if it's working alright
+#print("Sample point:", sample[0], sample[2]) #I am just checking if it's working alright
 
 # samples therefore contains all the p_M generated points. Hence we can finally start constructing the T-Map
 
@@ -234,7 +235,7 @@ def z_J_container(extras, coordinates_for_every_p_M):
 
     return list_of_z_J
 
-container = z_J_container(extras, coord_fix_fn)
+container = z_J_container(extras, coordinates_for_every_p_M)
 
 #print(z_J_container()) # compare with each no as it comes out if it's right or not. Indeed it worked :)
 
@@ -253,7 +254,7 @@ def Jacobian_matrix():
 
     Jacobians = []
     derivatives_Jacobians = []
-    for y in range(len(extras)):
+    for y in range(len(sample)):
 
         g = cfepm[y]
         c = ext[y] # i'th element of extras, ie: index we fix to -(sum...)^1/5
@@ -275,16 +276,20 @@ def Jacobian_matrix():
                 # second or third loop of q. Reason being is cause if i = h then that position in which h is
                 # which is given by q by definition, ie: for the h'th column and q'th row then such component
                 # is equal to 1.
+                m = [x for x in b if x != h]
                 if i == c: # infamous conditions
-                    J[q, i] = (-(g[h] ** 4) / (cont[y]) ** 4)
-                elif i == h:
-                    J[q, i]=1 # infamous conditions
+                    J[q, i] = abs((-(g[h] ** 4) / (cont[y]) ** 4))
+                    for r in range(5):
+                        if r == c:
+                            dJ[r, q, i] = abs(4 * ((g[h] ** 4) / ((cont[y]) ** 5)))
+                        elif r == h:
+                            dJ[r, q, i] = abs(( -4 * (g[h] ** 3) / ((cont[y]) ** 4) - 4 * (g[h] ** 8) / ((cont[y]) ** 9)))
+                        elif r in m:
+                            dJ[r ,q, i] = abs(( -4 * ((g[h] ** 4) * (g[r] ** 4)) / ((cont[y]) ** 9) ))
 
-                for r in range(5):
-                    if r == 1:
-                        dJ[r, q, i] = 4 * ((g[h] ** 4) / ((cont[y]) ** 5))
-                    elif r == h:
-                        dJ[r, q, i] = (-4 * (g[h]**3)/((cont[y]) ** 4) )
+                elif i == h:
+                    J[q, i] = 1 # infamous conditions
+
 
         Jacobians.append(J)
         derivatives_Jacobians.append(dJ)
@@ -299,7 +304,7 @@ Jack, deriv_Jack = Jacobian_matrix()
 
 
 # Now onto defining the metric, for the Kahler form.
-def metric_builder(fixed):
+def metric_builder():
     container_of_metrics = []
     cfepm = coordinates_for_every_p_M
     for x in range(len(fixed)):  # remember that g[i][j] means i'th row j'th column element.
@@ -322,7 +327,7 @@ def metric_builder(fixed):
 
     return container_of_metrics
 
-metrics_at_each_p_M = metric_builder(fixed)
+metrics_at_each_p_M = metric_builder()
 
 #print(metrics_at_each_p_M[1]-metrics_at_each_p_M[998])
 
@@ -331,7 +336,7 @@ metrics_at_each_p_M = metric_builder(fixed)
 
 # Now we can code the determinant of the pullback of the Kahler form. det(i J^T g J)
 
-def determinant_builder(extras):
+def determinant_builder():
 
     maepm = metrics_at_each_p_M
     Jk = Jack
@@ -344,24 +349,39 @@ def determinant_builder(extras):
         Jt = np.matrix_transpose(J)
         Jtbar = np.conjugate(Jt)
 
-        pullback = np.einsum('ia,ab,bj -> ij', J,g,Jtbar)
+        pullback = np.einsum('ia,ab,bj -> ij', J,g,Jtbar) # we note that the metric on FS hermitian and so is it's pullback by the jacobians.
         #print(pullback.shape)
 
-        det = np.linalg.det(pullback)
+        herm_pb = np.matrix.transpose(np.matrix.conj(pullback))
+        #therefore imma be cheeky and force hermitianity to clean up any error.
 
-        determinant_pullback_at_each_p_M.append( det )
+        pb = 0.5 * (pullback + herm_pb)
+
+        det = np.linalg.det(pb)
+        detreal = (det + np.conj(det)) / 2
+        if detreal <= 0:
+            raise ValueError(f"determinant not positive: {detreal}")
+
+        determinant_pullback_at_each_p_M.append( detreal )
 
     return determinant_pullback_at_each_p_M
 
-determinant_list = determinant_builder(extras)
+determinant_list = determinant_builder()
 
 #print(determinant_builder())
 #print("Count", len(determinant_builder()) ,'\n')
 
 
+
+
+
+
+
+
+
+
 # For simplicity for the T-map is better if we define the values for the factor of the sum over N_p points of
 # 1/25|z_J|^8 det(f*w)
-
 
 # We first define the monomials of the map.
 
@@ -374,29 +394,6 @@ N_k = math.comb(n + K - 1, K) #we looking at k less than 5 anyways, remember tha
 #print(N_k)
 
 #creating a function that generates the list of monomials combination for a given k (user's choice)
-
-def Monomial_list_coord_value():
-
-    cfepm = coordinates_for_every_p_M
-
-    Monomial_list = []
-
-    for i in range(len(sample)):
-        z = cfepm[i]
-        variables = [z[0],z[1],z[2],z[3],z[4]]
-        combo = combinations_with_replacement(variables, K) #change 612 line too
-        gh = list(combo)
-        Monomial_list.append(gh)
-
-    return Monomial_list
-
-every_single_monomial_combination_tuple = Monomial_list_coord_value()
-#print(every_single_monomial_combination_tuple[2])
-
-
-
-
-
 
 # Now we need to add a code that creates the T-map. We divide the labour in two factors. First one Being N_k/Vol_CY and
 # the second factor containing the sum over the matrix constructed by the monomials times the weight
@@ -432,51 +429,54 @@ ff = first_factor(N_k)
 
 
 
+# We first define the monomials of the map.
+
+def Monomial_list_coord_value(k):
+
+    cfepm = coordinates_for_every_p_M
+
+    Monomial_list = []
+
+    for i in range(len(sample)):
+        z = cfepm[i]
+        variables = [z[0],z[1],z[2],z[3],z[4]]
+        combo = combinations_with_replacement(variables, k) # change 612 line too
+        gh = list(combo)
+        Monomial_list.append(gh)
+
+    return Monomial_list
+
+every_single_monomial_combination_tuple = Monomial_list_coord_value(1) #set the K you want here too
+#print(every_single_monomial_combination_tuple[2])
+
+
+
 # For the second factor we need to create first a list containing matrix that should contain s_alpha s_betabar at
 # each p_M. Then construct the sum function timing by the weight given by 1/(25...determinant_list[i]).
 # Starting by the numerator
 
 def section_vector_list():
-
     section_vec_list = []
     esmct = every_single_monomial_combination_tuple
     for i in range(len(sample)):
-        aid_list = []
-        x = esmct[i]
+        x = esmct[i] # list of N_k tuples
         s = np.zeros(N_k, dtype=complex)
-
         for j in range(N_k):
-            y = list(x[j])
-            prod = y[0]
-            # cause y a tuple and not int
-            aid_list.append(prod)
-
-
-        for r in range(N_k):
-            s[r] = aid_list[r] # s_alpha vector
-
+            s[j] = np.prod(x[j]) # product of tuple values
         section_vec_list.append(s)
-
     return section_vec_list
 
 svl = section_vector_list()
 
-#print(svl[0]-svl[4])
+print(svl[0]-svl[4])
 
 def section_matrix_generator():
 
     section_matrix_list = []
-
-    secvl = svl
-
-    for f in range(len(sample)):
-        B = np.zeros((N_k,N_k), dtype=complex)
-        s = secvl[f]
+    for s in svl:
         A = np.einsum('i,j->ij', s,np.matrix.conj(s))
-        C = A + B
-        for i in range(N_k):
-            C[i][i] = (A[i][i]+np.conj(A[i][i]))/2
-        section_matrix_list.append(C)
+        A_herm = 0.5 * (A + A.conj().T) #trying to get rid of little tiny errors for more accurate result
+        section_matrix_list.append(A_herm)
 
     return section_matrix_list
 
@@ -485,25 +485,6 @@ sfm = section_matrix_generator()
 #print(sfm[0])
 #print(sfm[0].shape)
 
-
-
-
-def second_factor_weight_and_num():
-
-    wml = w_M_list
-    secmatrixgen = sfm
-
-    selection_iteration_term = []
-
-    for i in range(len(sample)):
-        term = wml[i] * secmatrixgen[i]
-        selection_iteration_term.append(term)
-
-    return selection_iteration_term
-
-sfwad = second_factor_weight_and_num()
-#print(sfwad[1]-sfwad[0])
-#print(second_factor_weight_and_denom())
 
 
 
@@ -523,7 +504,7 @@ def sum_over_h_second_factor():
                        # [0, 0, 0, 0, 1]], dtype=complex)
 
 
-    factor = sum((( sfm[i] * wml[i]) / (np.einsum("mn,mn",np.linalg.inv(h),secmatrixgen[i])) ) for i in range(len(sample)) )
+    factor = sum(( (sfm[i] * wml[i]) / (np.einsum("mn,mn",np.linalg.inv(h),secmatrixgen[i])) ) for i in range(len(sample)) )
     #print(factor)
     return factor
 
@@ -532,26 +513,22 @@ sohsf = sum_over_h_second_factor()
 #print(sohsf)
 #print(sohsf.shape)
 
+def T_map_iteration(h, ff, wml, secmatrixgen, n_iter):
+    for _ in range(n_iter):
+        T_h = ff * sum((secmatrixgen[i] * wml[i]) / (np.einsum("mn,mn", np.linalg.inv(h), secmatrixgen[i])) for i in range(len(secmatrixgen)))
+        print(T_h)
+        h = np.linalg.inv(T_h)
 
-def T_map_function(ff, sohsf):
+        # Normalise to prevent scaling drift
+        #h /= (np.linalg.det(h) ** (1/h.shape[0]))
 
-    wml = w_M_list
-    secmatrixgen = sfm
+    return h
 
-    T_map = ff * sohsf
+h0 = np.eye(N_k, dtype=complex)
+h_new = T_map_iteration(h0, ff, w_M_list, sfm, 10)
 
-    for _ in range(10): # Input here how many times to iterate the T_map
-        T_map =  ff * sum( (secmatrixgen[i] * wml[i])/ (np.einsum("mn,mn",np.transpose(np.linalg.inv(T_map)),secmatrixgen[i])) for i in range(len(sample)) )
-    return T_map
+print(h_new)
 
-T_map = T_map_function(ff, sohsf)
-
-#print(T_map)
-print(T_map.shape)
-
-h_new = np.transpose(np.linalg.inv(T_map))
-
-#print(h_new)
 
 
 
@@ -614,7 +591,7 @@ def derivative_section_matrix_builder():
     some_list = [] # S_alpha basically
     for j in range(len(gh)):
         y = gh[j]
-        prod = y[0] #each s_alpha element (for each higher k add another product)
+        prod = np.prod(y) #each s_alpha element (for each higher k add another product)
         some_list.append(prod)
 
     rows = len(variables)  # 5
@@ -737,8 +714,9 @@ def actual_determinant_builder():
         Jbar = np.conj(J)
 
         pullback = np.einsum('ia,ab,jb -> ij', J,g,Jbar)
+        pb = (pullback+np.matrix.conj(pullback))/2
 
-        det = np.linalg.det(pullback)
+        det = np.linalg.det(pb)
 
         determinant_pullback_list.append(det)
 
@@ -972,6 +950,7 @@ t2 = perf_counter()
 print("Elapsed time:", t2, t1)
 
 print("Elapsed time during the whole program in seconds:",t2-t1)
+
 
 
 

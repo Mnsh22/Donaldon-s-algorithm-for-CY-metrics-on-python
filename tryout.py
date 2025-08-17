@@ -69,7 +69,7 @@ print(B_num.shape)      # (126, 5)
 print(B_num)         # first row should be [5., 0., 0., 0., 0.]
 
 
-
+w = [5,6,7,8,9]
 dJ = np.arange(75).reshape(5,3,5)
 dg = np.arange(125).reshape(5,5,5)
 ddg = np.arange(625).reshape(5,5,5,5)
@@ -85,7 +85,78 @@ for i in range(15):
         for k in range(5):
             P[i ,j, k] = 1
 
-print(P.shape)
+#print(w)
 
-print(np.arange(15).reshape(3,5))
+#print(np.argmax(w))
+
+def combinations():
+    z0 = sp.Symbol('z0')
+    z1 = sp.Symbol('z1')
+    z2 = sp.Symbol('z2')
+    z3 = sp.Symbol('z3')
+    z4 = sp.Symbol('z4')
+    gigachad = [z0, z1, z2, z3, z4]
+    variables = [0,1,2,3,4]
+    combo = combinations_with_replacement(variables, 5)  # change 612 line too
+    gh = list(combo)
+    print(gh)
+    vector_list = []
+    for x in gh:
+        gigacombo = np.zeros(5, dtype=object)
+        for i in range(5):
+            b = x[i]
+            gigacombo[i] = gigachad[b]
+        vector_list.append(gigacombo)
+
+    return vector_list
+
+print(combinations())
+
+def derivative_section_matrix_builder():
+    z0 = sp.Symbol('z0')
+    z1 = sp.Symbol('z1')
+    z2 = sp.Symbol('z2')
+    z3 = sp.Symbol('z3')
+    z4 = sp.Symbol('z4')
+    variables = [z0, z1, z2, z3, z4]
+
+    # list of all degree-5 monomials (126 of them)
+    combo = combinations_with_replacement(variables, 5)  # change 612 line too
+    gh = list(combo)
+
+    some_list = [] # S_alpha basically
+    for j in range(len(gh)):
+        y = gh[j]
+        prod = sp.prod(y) #each s_alpha element (for each higher k add another product)
+        some_list.append(prod)
+
+    return some_list
+
+print(derivative_section_matrix_builder())
+
+
+
+def T_map_function(h, ff, n_iter):
+
+    wml = w_M_list
+    secmatrixgen = sfm
+
+    T_map = ff * sohsf
+
+    for _ in range(10): # Input here how many times to iterate the T_map
+        T_map =  ff * sum( (secmatrixgen[i] * wml[i])/ (np.einsum("mn,mn",np.transpose(np.linalg.inv(T_map)),secmatrixgen[i])) for i in range(len(sample)) )
+        print(T_map)
+    return T_map
+
+T_map = T_map_function(ff, sohsf)
+
+#print(T_map)
+print(T_map.shape)
+
+h_new = np.transpose(np.linalg.inv(T_map))
+
+print(h_new)
+
+
+
 
