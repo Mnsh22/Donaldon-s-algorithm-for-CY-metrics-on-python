@@ -35,3 +35,11 @@ def derivative_section_matrix_builder(coords, K):
 ds_list, dds_list = derivative_section_matrix_builder(coordinate_list, 2)
 
 print(ds_list[0].shape, dds_list[0].shape)
+
+v = [1,2,3]
+r = [4,5,6]
+
+G = np.einsum('i,j->ij', v,r)
+H = np.outer(v,r)
+print(G)
+print(H)

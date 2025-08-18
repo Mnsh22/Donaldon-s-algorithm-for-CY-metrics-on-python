@@ -35,10 +35,10 @@ def projected_S9_point_onto_coord_of_CP4(v):
 
 # Now we use the two random points on S9 to define a line in CP^4 intersecting X, Ie: following the polynomial equation.
 def find_quintic_roots():
-    v1 = sample_point_C5_on_unit_sphere()
-    v2 = sample_point_C5_on_unit_sphere()
-    p = projected_S9_point_onto_coord_of_CP4(v1)
-    q = projected_S9_point_onto_coord_of_CP4(v2)
+    p = sample_point_C5_on_unit_sphere()
+    q = sample_point_C5_on_unit_sphere()
+    #p = projected_S9_point_onto_coord_of_CP4(v1)
+    #q = projected_S9_point_onto_coord_of_CP4(v2)
 
     polynomial = np.zeros(6, dtype=complex)  # Vector each containing a term in the expansion of the polynomial
     # cause np.roots works with vectors only.
@@ -79,12 +79,9 @@ def generate_quintic_points(p_M_points):
 
             points.append(z)
 
-        if len(points) >= p_M_points: # limit of the while loop.
-            break
-
     return np.array(points)  # shape: (n_points, 5)
 
-sample = generate_quintic_points(p_M_points=12250) ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
+sample = generate_quintic_points(p_M_points=52250) ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
 
 
 #print("Shape:", sample.shape)  # (1000, 5)
@@ -289,13 +286,6 @@ def Jacobian_matrix():
                 elif i == h:
                     J[q, i] = 1 # infamous conditions
 
-                #for r in range(5): ####### WHAT?????
-                    #if r == c:
-                        #dJ[r, q, i] = (4 * ((g[h] ** 4) / ((cont[y]) ** 5)))
-                    #elif r == h:
-                        #dJ[r, q, i] = ( -4 * (g[h] ** 3) / ((cont[y]) ** 4)) - (4 * (g[h] ** 8) / ((cont[y]) ** 9))
-                    #elif r in m:
-                        #dJ[r ,q, i] = (( -4 * ((g[h] ** 4) * (g[r] ** 4))) / ((cont[y]) ** 9))
 
         Jacobians.append(J)
         derivatives_Jacobians.append(dJ)
@@ -358,12 +348,12 @@ def determinant_builder():
         pullback = np.einsum('ia,ab,bj->ij', J,g,Jtbar) # we note that the metric on FS hermitian and so is it's pullback by the jacobians.
         #print(pullback.shape)
 
-        #herm_pb = np.matrix.transpose(np.matrix.conj(pullback))
+        herm_pb = np.matrix.transpose(np.matrix.conj(pullback))
         #therefore imma be cheeky and force hermitianity to clean up any error.
 
-        #pb = 0.5 * (pullback + herm_pb)
+        pb = 0.5 * (pullback + herm_pb)
 
-        det = np.linalg.det(pullback)
+        det = np.linalg.det(pb)
         #detreal = (det + np.conj(det)) / 2
 
         determinant_pullback_at_each_p_M.append( det )
@@ -390,7 +380,7 @@ determinant_list = determinant_builder()
 # We first define the monomials of the map.
 
 n = 5  # number of coordinates we are considering
-K = 3  # order polynomial we are considering
+K = 2  # order polynomial we are considering
 
 #def N_k_builder():
 N_k = math.comb(n + K - 1, K) #we looking at k less than 5 anyways, remember that for k>5 need to remove dof
@@ -421,7 +411,7 @@ def first_factor(N_k):
 
     wml = w_M_list
 
-    Vol_CY = (1/len(sample)) * sum(wml[i] for i in range(len(sample)))
+    Vol_CY = (1/len(sample)) * sum(wml)
     first_fact = (N_k)/(Vol_CY)
 
     return first_fact
@@ -450,7 +440,7 @@ def Monomial_list_coord_value(k):
 
     return Monomial_list
 
-every_single_monomial_combination_tuple = Monomial_list_coord_value(3) #set the K you want here too
+every_single_monomial_combination_tuple = Monomial_list_coord_value(2) #set the K you want here too
 #print(every_single_monomial_combination_tuple[2])
 
 
@@ -487,7 +477,7 @@ def section_matrix_generator():
 sfm = section_matrix_generator()
 #print(len(sfm))
 #print(sfm[0])
-#print(sfm[0].shape)
+print(sfm[0].shape)
 
 
 
@@ -498,12 +488,12 @@ sfm = section_matrix_generator()
 
 def T_map_iteration(h_inv, ff, wml, secmatrixgen, n_iter):
     for _ in range(n_iter):
-        T_h = ff * sum((secmatrixgen[i] * wml[i]) / (np.einsum("mn,mn", h_inv, secmatrixgen[i])) for i in range(len(secmatrixgen)))
+        T_h = ff * sum( ( (secmatrixgen[i] * wml[i]) / (np.einsum("mn,mn", h_inv, secmatrixgen[i])) ) for i in range(len(sample)))
         print(T_h)
         h_inv = np.matrix_transpose(np.linalg.inv(T_h)) #indices
 
         # Normalise to prevent scaling drift
-        #h /= (np.linalg.det(h) ** (1/h.shape[0]))
+        #h_inv /= (np.linalg.det(h_inv) ** (1/h_inv.shape[0]))
 
     return h_inv
 
@@ -534,7 +524,7 @@ print(h_new)
 # k = 1
 # Iteration times = 20
 
-N_t = 10000
+N_t = 50000
 
 def error_vol_CY(N_t, w_M_list):
     # Just like above here pick the desired N_k value over which the T-map should operate.
@@ -597,10 +587,12 @@ ds_list, dds_list = derivative_section_matrix_builder(coordinates_for_every_p_M,
 ttwo = perf_counter()
 
 
-print("Elapsed time during the whole program in seconds:", ttone - ttwo)
+print("Elapsed time during the whole program in seconds:", ttwo - ttone)
 
+print(ds_list[0]-ds_list[9])
 print(ds_list[0].shape)
 print("line blocker")
+print(dds_list[0]-dds_list[9])
 print(dds_list[0].shape)
 
 
@@ -890,7 +882,7 @@ def pullback_double_deriv_metric():
     dg = deriv_metric # 5,5,5
     ddg = double_deriv_met_list #5,5,5,5
     for i in range(N_t):
-        didjg_CY = (np.einsum('iam,jmn,bn -> ijab', dJ[i], np.matrix.conj(dg[i]), np.matrix.conj(J[i])) #### CHECK HERE TOO
+        didjg_CY = (np.einsum('iam,jmn,bn -> ijab', dJ[i], np.matrix.conj(np.swapaxes(dg[i], 1,2)), np.matrix.conj(J[i])) #### CHECK HERE TOO
                     + np.einsum('am,ijmn,bn -> ijab', J[i], ddg[i], np.matrix.conj(J[i]))
                     + np.einsum('iam,mn,jbn -> ijab', dJ[i], g[i], np.matrix.conj(dJ[i]))
                     + np.einsum('am,imn,jbn -> ijab', J[i], dg[i], np.matrix.conj(dJ[i])))
