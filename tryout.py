@@ -68,12 +68,19 @@ def generate_quintic_points(p_M_points):
 
     return np.array(points)  # shape: (n_points, 5)
 
-sample = generate_quintic_points(p_M_points=62250) ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
+sample = generate_quintic_points(p_M_points=50250) ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
 
 Error_sample = generate_quintic_points(p_M_points=40000)
 
+N_t = len(Error_sample)
 
+n = 5  # number of coordinates we are considering
+K = 1  # order polynomial we are considering
 
+#def N_k_builder():
+N_k = math.comb(n + K - 1, K) #we looking at k less than 5 anyways, (remember that for k>5 need to remove dof)
+
+#print(N_k)
 
 
 
@@ -109,6 +116,8 @@ def coordinates_picking(sample):
 
 fixed = coordinates_picking(sample)
 
+Error_fixed = coordinates_picking(Error_sample)
+
 #print(fixed)
 #print(coordinates_picking(sample))
 
@@ -122,6 +131,8 @@ def coordinates_fixing(sample, fix):
     return sample
 
 coord_fix_fn = coordinates_fixing(sample, fixed) # Need to do it if we wanna define a fn in terms of it.
+
+Error_coord_fix_fn = coordinates_fixing(Error_sample, Error_fixed) # Need to do it if we wanna define a fn in terms of it.
 
 #print(coordinates_fixing(sample)[1]) # just checking if it's right
 #print("Count:", len(coordinates_fixing(sample)), "\n") # again just a check
@@ -146,21 +157,27 @@ def extra_trial_picking(coord_fix_fn):
 extras = extra_trial_picking(coord_fix_fn)
 #print(extras[1])
 
+Error_extras = extra_trial_picking(Error_coord_fix_fn)
+#print(extras[1])
+
 
 # That was way more painful that it looked. Anyways now we can build the coordinates fixer.
-def extra_coordinates_fixing(coord_fix_fn, extras):
 
-    for i in range(len(extras)):
+def extra_coordinates_fixing(coord, ext):
 
-        b = extras[i]
+    for i in range(len(ext)):
+
+        b = ext[i]
         not_b_indices = [k for k in range(5) if k != b] # just like before but != means not equal so make a list of
         # numbers that are not the b index
-        s = sum([ coord_fix_fn[i][k]**5 for k in not_b_indices ]) # NB: Need to equal this to a number or Int problem
-        coord_fix_fn[i][b] = (-s)**(1/5)
+        s = sum([ coord[i][k]**5 for k in not_b_indices ]) # NB: Need to equal this to a number or Int problem
+        coord[i][b] = (-s)**(1/5)
 
     return coord_fix_fn
 
 coordinates_for_every_p_M = extra_coordinates_fixing(coord_fix_fn, extras)
+
+Error_coordinates_for_every_p_M = extra_coordinates_fixing(Error_coord_fix_fn, Error_extras)
 
 # Seems to work, by checking print(coord_fixing(sample)) and print(extras) the only no that should change from the first
 # of the two print should be the component given by print(extras), and it matches, so should be right.
@@ -187,16 +204,19 @@ def z_J_container(extras, coordinates_for_every_p_M):
 
 container = z_J_container(extras, coordinates_for_every_p_M)
 
+Error_container = z_J_container(Error_extras, Error_coordinates_for_every_p_M)
+
 
 
 # Now we need to create the det function and we will have all the ingredients to make the T-map. To build such function
 # we will need to first create the Jacobian matrix. Then the Kahler form over the CP^4 (FS). And finally the determinant
 # of the pullback given by the determinant of two Jacobian matrices acting over the FS kahler form.
 
-def Jacobian_matrix(cfepm, ext, fix, cont):
+def Jacobian_matrix(cfepm, ext, fix, cont, sample):
 
     Jacobians = []
     derivatives_Jacobians = []
+
     for y in range(len(sample)):
 
         g = cfepm[y]
@@ -234,13 +254,15 @@ def Jacobian_matrix(cfepm, ext, fix, cont):
         derivatives_Jacobians.append(dJ)
     return Jacobians, derivatives_Jacobians
 
-Jack, deriv_Jack = Jacobian_matrix(coordinates_for_every_p_M, extras, fixed, container)
+Jack, deriv_Jack = Jacobian_matrix(coordinates_for_every_p_M, extras, fixed, container, sample)
+
+Error_Jack, Error_deriv_Jack = Jacobian_matrix(Error_coordinates_for_every_p_M, Error_extras, Error_fixed, Error_container, Error_sample)
 
 
 # Now onto defining the metric, for the Kahler form.
-def P4_FS_metric_builder(cfepm):
+def P4_FS_metric_builder(cfepm, fix):
     container_of_metrics = []
-    for x in range(len(fixed)):  # remember that g[i][j] means i'th row j'th column element.
+    for x in range(len(fix)):  # remember that g[i][j] means i'th row j'th column element.
         g = np.zeros((5, 5), dtype=complex)
         z = cfepm[x]
         norm = np.vdot(z, z).real
@@ -256,9 +278,15 @@ def P4_FS_metric_builder(cfepm):
 
     return container_of_metrics
 
-metrics_at_each_p_M = P4_FS_metric_builder(coordinates_for_every_p_M)
+metrics_at_each_p_M = P4_FS_metric_builder(coordinates_for_every_p_M, fixed)
+
+Error_metrics_at_each_p_M = P4_FS_metric_builder(Error_coordinates_for_every_p_M, Error_fixed)
 
 #print(metrics_at_each_p_M[1]-metrics_at_each_p_M[998])
+
+
+
+
 
 def determinant_builder_P4(g, J, extras):
 
@@ -276,17 +304,19 @@ def determinant_builder_P4(g, J, extras):
 
 det_Kahler_list = determinant_builder_P4(metrics_at_each_p_M, Jack, extras)
 
+Error_det_Kahler_list = determinant_builder_P4(Error_metrics_at_each_p_M, Error_Jack, Error_extras)
+
+
+
+
+
+
+
 
 
 # We first define the monomials of the map.
 
-n = 5  # number of coordinates we are considering
-K = 3  # order polynomial we are considering
 
-#def N_k_builder():
-N_k = math.comb(n + K - 1, K) #we looking at k less than 5 anyways, (remember that for k>5 need to remove dof)
-
-#print(N_k)
 
 #creating a function that generates the list of monomials combination for a given k (user's choice)
 
@@ -308,6 +338,10 @@ def weight_list(cont, detlist, sample):
 
 w_M_list = weight_list(container, det_Kahler_list, sample)
 
+Error_w_M_list = weight_list(Error_container, Error_det_Kahler_list, Error_sample)
+
+
+
 
 def first_factor(N_k, wml, sample):
 
@@ -317,6 +351,7 @@ def first_factor(N_k, wml, sample):
     return first_fact
 
 ff = first_factor(N_k, w_M_list, sample)
+
 
 
 
@@ -334,7 +369,7 @@ def Monomial_list_coord_value(k, cfepm, sample):
 
     return Monomial_list
 
-every_single_monomial_combination_tuple = Monomial_list_coord_value(3, coordinates_for_every_p_M, sample) #set the K you want here too
+every_single_monomial_combination_tuple = Monomial_list_coord_value(K, coordinates_for_every_p_M, sample) #set the K you want here too
 #print(every_single_monomial_combination_tuple[2])
 
 
@@ -405,33 +440,28 @@ h_new = T_map_iteration(h0, ff, svl, w_M_list, 10, sample)
 
 
 # STEP 3: Calculate the sigma error in the code. It's nice to have a nice recap of the variables we have.
-# Np = 1000
-# k = 1
-# Iteration times = 20
 
-N_t = 60000
-
-def error_vol_CY(N_t, w_M_list):
+def error_vol_CY(N_t, Error_w_M_list):
     # Just like above here pick the desired N_k value over which the T-map should operate.
-    Evcy = (1/N_t) * sum(w_M_list)
+    Evcy = (1/N_t) * sum(Error_w_M_list)
     return Evcy
 
-EVCY = error_vol_CY(N_t, w_M_list)
+EVCY = error_vol_CY(N_t, Error_w_M_list)
 #print(EVCY)
 
 
 
 # To find Vol_K and hence all the error measures we need the pullback of the Kahler form wrt balanced metric
 
-def Volume_form_builder(cont):
+def Volume_form_builder(Error_cont):
 
     volume_form_list = []
     for i in range(N_t):
-        OmOmbar = 1/ ( 25 * ((abs(cont[i]))**(8)) )
+        OmOmbar = 1/ ( 25 * ((abs(Error_cont[i]))**(8)) )
         volume_form_list.append(OmOmbar)
     return volume_form_list
 
-OmOmbar_list = Volume_form_builder(container)
+OmOmbar_list = Volume_form_builder(Error_container)
 
 
 
@@ -452,12 +482,12 @@ def section_sympy_builder(K): #Using sympy for derivatives (I used it before and
 
     return A_aid, B_aid
 
-def derivative_section_matrix_builder(coords, K):
+def derivative_section_matrix_builder(Error_coords, K):
 
     A_aid, B_aid = section_sympy_builder(K)
     ds_list = []
     dds_list = []
-    for coord in coords:  # coord is length-5 complex vector
+    for coord in Error_coords:  # coord is length-5 complex vector
         A_num = np.asarray(A_aid(*coord), dtype=np.complex128)   # (5, N_k)
         ds_list.append(A_num)
         # If not needed, skip the next two lines entirely:
@@ -465,7 +495,7 @@ def derivative_section_matrix_builder(coords, K):
         dds_list.append(B_num)
     return ds_list, dds_list
 
-ds_list, dds_list = derivative_section_matrix_builder(coordinates_for_every_p_M, K)
+ds_list, dds_list = derivative_section_matrix_builder(Error_coordinates_for_every_p_M, K)
 
 
 
@@ -567,7 +597,7 @@ def Error_Vol_K_builder(det, OmOmbar, w_M, N_t):
     Vol_K = (1/N_t) * np.sum([ (( det[i] / OmOmbar[i] ) * w_M[i]) for i in range(N_t)])
     return Vol_K
 
-EVK = Error_Vol_K_builder(det_CY_metric, OmOmbar_list, w_M_list, N_t)
+EVK = Error_Vol_K_builder(det_CY_metric, OmOmbar_list, Error_w_M_list, N_t)
 
 print('det', det_CY_metric[0])
 print('OmOm', OmOmbar_list[0])
@@ -576,7 +606,7 @@ print('volumes ratio', EVK/EVCY)
 
 
 def Error_sigma(EVK, EVCY, det, OmOmbar):
-    sigma = (1/(N_t * EVCY)) * (np.sum([ (abs(1 - ( (det[i]/EVK) / (OmOmbar[i]/EVCY) )) * w_M_list[i]) for i in range(N_t) ]))
+    sigma = (1/(N_t * EVCY)) * (np.sum([ (abs(1 - ( (det[i]/EVK) / (OmOmbar[i]/EVCY) )) * Error_w_M_list[i]) for i in range(N_t) ]))
     return sigma
 
 sigma = Error_sigma(EVK, EVCY, det_CY_metric, OmOmbar_list)
@@ -774,7 +804,7 @@ def Ricci_error(detg, OmOm, R, w_M):
 
     return R
 
-R_error = Ricci_error(det_CY_metric, OmOmbar_list, CY_R, w_M_list)
+R_error = Ricci_error(det_CY_metric, OmOmbar_list, CY_R, Error_w_M_list)
 
 print(R_error)
 
