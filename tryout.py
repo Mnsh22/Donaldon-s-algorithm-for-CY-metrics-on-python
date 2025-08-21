@@ -43,7 +43,7 @@ def find_quintic_roots():
     # cause np.roots works with vectors only.
 
     for k in range(6):
-        polynomial[k] = sum(math.comb(5, k) * (p[i] ** (5 - k)) * (q[i] ** k) for i in range(5))
+        polynomial[k] = sum([math.comb(5, k) * (p[i] ** (5 - k)) * (q[i] ** k) for i in range(5)])
 
         # Now that coeff is fully built, solve for roots
     roots = np.roots(polynomial[::-1])  # np.roots wants highest degree first
@@ -68,7 +68,7 @@ def generate_quintic_points(p_M_points):
 
     return np.array(points)  # shape: (n_points, 5)
 
-sample = generate_quintic_points(p_M_points=50000) ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
+sample = generate_quintic_points(p_M_points=62250) ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
 
 Error_sample = generate_quintic_points(p_M_points=40000)
 
@@ -155,7 +155,7 @@ def extra_coordinates_fixing(coord_fix_fn, extras):
         b = extras[i]
         not_b_indices = [k for k in range(5) if k != b] # just like before but != means not equal so make a list of
         # numbers that are not the b index
-        s = sum( coord_fix_fn[i][k]**5 for k in not_b_indices ) # NB: Need to equal this to a number or Int problem
+        s = sum([ coord_fix_fn[i][k]**5 for k in not_b_indices ]) # NB: Need to equal this to a number or Int problem
         coord_fix_fn[i][b] = (-s)**(1/5)
 
     return coord_fix_fn
@@ -260,17 +260,13 @@ metrics_at_each_p_M = P4_FS_metric_builder(coordinates_for_every_p_M)
 
 #print(metrics_at_each_p_M[1]-metrics_at_each_p_M[998])
 
-def determinant_builder(maepm, Jk, extras):
+def determinant_builder_P4(g, J, extras):
 
     determinant_pullback_at_each_p_M = []
 
     for i in range(len(extras)):
-        g = maepm[i]
-        J = Jk[i]
-        Jt = np.matrix_transpose(J)
-        Jtbar = np.conjugate(Jt)
 
-        pullback = J @ g @ Jtbar # we note that the metric on FS hermitian and so is it's pullback by the jacobians.
+        pullback = J[i] @ g[i] @ np.conj(J[i]).T # we note that the metric on FS hermitian and so is it's pullback by the jacobians.
 
         det_Kahler = np.linalg.det(pullback)
 
@@ -278,14 +274,14 @@ def determinant_builder(maepm, Jk, extras):
 
     return determinant_pullback_at_each_p_M
 
-det_Kahler_list = determinant_builder(metrics_at_each_p_M, Jack, extras)
+det_Kahler_list = determinant_builder_P4(metrics_at_each_p_M, Jack, extras)
 
 
 
 # We first define the monomials of the map.
 
 n = 5  # number of coordinates we are considering
-K = 2  # order polynomial we are considering
+K = 3  # order polynomial we are considering
 
 #def N_k_builder():
 N_k = math.comb(n + K - 1, K) #we looking at k less than 5 anyways, (remember that for k>5 need to remove dof)
@@ -300,27 +296,27 @@ N_k = math.comb(n + K - 1, K) #we looking at k less than 5 anyways, (remember th
 # the second factor containing the sum over the matrix constructed by the monomials times the weight
 # First factor given by:
 
-def weight_list(cont, detlist):
+def weight_list(cont, detlist, sample):
 
 
     weight_list = []
 
     for i in range(len(sample)):
-        w = 1 / ( 25 * (abs(cont[i]) ** 8) * (detlist[i]) * (-6) * ((1j/2)**3) )
+        w = 1 / ( 25 * ((abs(cont[i])) ** 8) * (detlist[i]) )
         weight_list.append(w)
     return weight_list
 
-w_M_list = weight_list(container, det_Kahler_list)
+w_M_list = weight_list(container, det_Kahler_list, sample)
 
 
-def first_factor(N_k, wml):
+def first_factor(N_k, wml, sample):
 
     Vol_CY = ((1/len(sample)) * sum(wml))
     first_fact = (N_k)/(Vol_CY)
 
     return first_fact
 
-ff = first_factor(N_k, w_M_list)
+ff = first_factor(N_k, w_M_list, sample)
 
 
 
@@ -338,7 +334,7 @@ def Monomial_list_coord_value(k, cfepm, sample):
 
     return Monomial_list
 
-every_single_monomial_combination_tuple = Monomial_list_coord_value(2, coordinates_for_every_p_M, sample) #set the K you want here too
+every_single_monomial_combination_tuple = Monomial_list_coord_value(3, coordinates_for_every_p_M, sample) #set the K you want here too
 #print(every_single_monomial_combination_tuple[2])
 
 
@@ -360,14 +356,14 @@ def section_vector_list(esmct, sample):
 svl = section_vector_list(every_single_monomial_combination_tuple, sample)
 
 
-def T_map_iteration(h, ff, s, wml, n_iter):
+def T_map_iteration(h, ff, s, wml, n_iter, sample):
     for _ in range(n_iter):
-        T_h = ff * (1/len(sample)) * sum( ( ((np.einsum('m,n->mn', s[i], np.conj(s[i]))) * wml[i]) / (s[i] @ h @ np.conj(s[i]).T ) ) for i in range(len(sample)) )
+        T_h = ff * (1/len(sample)) * sum([ ( ((np.einsum('m,n->mn', s[i], np.conj(s[i]))) * wml[i]) / (np.einsum('ab,a,b', h, s[i], np.conj(s[i]))) ) for i in range(len(sample)) ])
 
-        convergence = (1/len(sample)) * sum((np.einsum('ab,a,b', np.linalg.inv(T_h).T, s[i], np.conj(s[i]))/np.einsum('ab,a,b', h, s[i], np.conj(s[i]))) for i in range(len(sample)))
-        convergence1 = np.einsum('ab,ba', T_h.T,h)
-        print(convergence)
-        print('start other convergence', convergence1)
+        #convergence = (1/len(sample)) * sum((np.einsum('ab,a,b', np.linalg.inv(T_h).T, s[i], np.conj(s[i]))/np.einsum('ab,a,b', h, s[i], np.conj(s[i]))) for i in range(len(sample)))
+        #convergence1 = np.einsum('ab,ba', T_h.T,h)
+        #print(convergence)
+        #print('start other convergence', convergence1)
         h = np.linalg.inv(T_h).T #indices
 
         # Normalise to prevent scaling drift
@@ -377,7 +373,7 @@ def T_map_iteration(h, ff, s, wml, n_iter):
 
 h0 = np.eye(N_k, dtype=complex)
 #h_trial = np.array([[1,0.0005j,0,1000000j,0],[-0.0005j,1,0,0,0],[0,0,1,0,0],[-1000000j,0,0,1,0],[0,0,0,0,1]], dtype=complex)
-h_new = T_map_iteration(h0, ff, svl, w_M_list, 10)
+h_new = T_map_iteration(h0, ff, svl, w_M_list, 10, sample)
 #print(h_new)
 
 
@@ -413,7 +409,7 @@ h_new = T_map_iteration(h0, ff, svl, w_M_list, 10)
 # k = 1
 # Iteration times = 20
 
-N_t = 5
+N_t = 60000
 
 def error_vol_CY(N_t, w_M_list):
     # Just like above here pick the desired N_k value over which the T-map should operate.
@@ -425,11 +421,13 @@ EVCY = error_vol_CY(N_t, w_M_list)
 
 
 
+# To find Vol_K and hence all the error measures we need the pullback of the Kahler form wrt balanced metric
+
 def Volume_form_builder(cont):
 
     volume_form_list = []
     for i in range(N_t):
-        OmOmbar = 1/ ( 25 * ((abs(cont[i]))**(-8)) )
+        OmOmbar = 1/ ( 25 * ((abs(cont[i]))**(8)) )
         volume_form_list.append(OmOmbar)
     return volume_form_list
 
@@ -499,6 +497,18 @@ K_i_list = K_i_builder(h_new, svl, ds_list)
 
 
 
+def Kbar_i_builder(h, s, ds):
+    Kbar_i_list = []
+
+    for i in range(N_t):
+        kbar_i = np.einsum('ab,a,ib->i', h, s[i], np.conj(ds[i]))
+        Kbar_i_list.append(kbar_i)
+    return Kbar_i_list
+
+Kbar_i_list = Kbar_i_builder(h_new, svl, ds_list)
+
+
+
 def K_ijbar_builder(h, ds):
     K_ijbar_list = []
 
@@ -508,6 +518,286 @@ def K_ijbar_builder(h, ds):
     return K_ijbar_list
 
 K_ijbar_list = K_ijbar_builder(h_new, ds_list)
+
+
+
+def RF_metric_on_P4(K, K_0, K_ijbar, K_i, Kbar_i):
+    rfmop4 = []
+
+    for i in range(N_t):
+        g = (1/(np.pi * K)) * ( (K_0[i] * K_ijbar[i]) - ((K_0[i] ** 2) * np.einsum('m,n->mn',K_i[i], Kbar_i[i]) ) )
+        rfmop4.append(g)
+
+    return rfmop4
+
+P4_Ricci_flat_metrics_list = RF_metric_on_P4(K, K_0_list, K_ijbar_list, K_i_list, Kbar_i_list)
+
+
+
+def CY_RF_metric_builder(J, g_tilda):
+    rfmoCY = []
+
+    for i in range(N_t):
+        g = np.einsum('ai,ij,bj->ab', J[i], g_tilda[i], np.conj(J[i]))
+        rfmoCY.append(g)
+    return rfmoCY
+
+CY_Ricci_flat_metrics_list = CY_RF_metric_builder(Jack, P4_Ricci_flat_metrics_list)
+
+print('RF CY metric', CY_Ricci_flat_metrics_list[0])
+
+
+
+def determinants_CY_metric(g, N_t):
+    dCYm = []
+
+    for i in range(N_t):
+        det = np.linalg.det(g[i])
+        dCYm.append(det)
+
+    return dCYm
+
+det_CY_metric = determinants_CY_metric(CY_Ricci_flat_metrics_list, N_t)
+
+
+
+
+
+def Error_Vol_K_builder(det, OmOmbar, w_M, N_t):
+    Vol_K = (1/N_t) * np.sum([ (( det[i] / OmOmbar[i] ) * w_M[i]) for i in range(N_t)])
+    return Vol_K
+
+EVK = Error_Vol_K_builder(det_CY_metric, OmOmbar_list, w_M_list, N_t)
+
+print('det', det_CY_metric[0])
+print('OmOm', OmOmbar_list[0])
+print('volumes ratio', EVK/EVCY)
+
+
+
+def Error_sigma(EVK, EVCY, det, OmOmbar):
+    sigma = (1/(N_t * EVCY)) * (np.sum([ (abs(1 - ( (det[i]/EVK) / (OmOmbar[i]/EVCY) )) * w_M_list[i]) for i in range(N_t) ]))
+    return sigma
+
+sigma = Error_sigma(EVK, EVCY, det_CY_metric, OmOmbar_list)
+
+print(sigma)
+
+
+
+
+
+
+def K_ij_builder(h, dds, s):
+
+    K_ij_list = []
+
+    for i in range(N_t):
+        K_ij = np.einsum('ab,ija,b->ij', h, dds[i], np.conj(s[i]))
+        K_ij_list.append(K_ij)
+    return K_ij_list
+
+K_ij_list = K_ij_builder(h_new, dds_list, svl)
+
+
+
+def K_ijkbar_builder(h, dds, ds):
+
+    K_ijkbar_list = []
+
+    for i in range(N_t):
+        K_ijkbar = np.einsum('ab,ija,kb->ijk', h, dds[i], np.conj(ds[i]))
+        K_ijkbar_list.append(K_ijkbar)
+    return K_ijkbar_list
+
+K_ijkbar_list = K_ijkbar_builder(h_new, dds_list, ds_list)
+
+
+
+def K_ikjbarlbar_builder(h, dds, N_t):
+    K_ikjbarlbar_list = []
+
+    for i in range(N_t):
+        K_ikjbarlbar = np.einsum('ab,ika,jlb->ikjl', h, dds[i], np.conj(dds[i]))
+        K_ikjbarlbar_list.append(K_ikjbarlbar)
+    return K_ikjbarlbar_list
+
+K_ikjbarlbar_list =  K_ikjbarlbar_builder(h_new, dds_list, N_t)
+
+
+
+def Kbar_jlkbar_builder(h, ds, dds):
+    Kbar_jlkbar_list = []
+
+    for i in range(N_t):
+        Kbar_jlkbar = np.einsum('ab,ia,jlb->ijl', h, ds[i], np.conj(dds[i]))
+        Kbar_jlkbar_list.append(Kbar_jlkbar)
+    return Kbar_jlkbar_list
+
+Kbar_jlkbar_list = Kbar_jlkbar_builder(h_new, ds_list, dds_list)
+
+
+
+
+
+def derivative_metric_p4(K_0, K_i, K_ijbar, Kbar_i, K_ij, K_ijkbar):
+    dmoP4 = []
+
+    for i in range(N_t):
+        dg = (1/(np.pi * K)) * ( - ((K_0[i])**2) * ( np.einsum('i,kl->ikl', K_i[i], K_ijbar[i])
+                                                     + np.einsum('k,il->ikl', K_i[i], K_ijbar[i])
+                                                     + np.einsum('l,ik->ikl', Kbar_i[i], K_ij[i]) )
+                                + K_0[i] * K_ijkbar[i]
+                                + 2 * ((K_0[i])**3) * ( np.einsum('i,k,l->ikl', K_i[i], K_i[i], Kbar_i[i]) ) )
+        dmoP4.append(dg)
+
+    return dmoP4
+
+P4_dg = derivative_metric_p4(K_0_list, K_i_list, K_ijbar_list, Kbar_i_list, K_ij_list, K_ijkbar_list)
+
+
+
+
+def double_deriv_metric_p4(K_0, K_ikjbarlbar, K_ijbar, K_ij, Kbar_i, K_ijkbar, K_i, Kbar_jlkbar):
+    ddmoP4 = []
+
+    for i in range(N_t):
+        ddg = (1/(np.pi * K)) * ((K_0[i] * K_ikjbarlbar[i])
+                                 - ((K_0[i])**2) * (np.einsum('ij,kl->ijkl', K_ijbar[i], K_ijbar[i])
+                                                    +np.einsum('ik,jl->ijkl', K_ij[i],np.conj(K_ij[i]))
+                                                    +np.einsum('kj,il->ijkl', K_ijbar[i], K_ijbar[i]))
+                                 - ((K_0[i])**2) * (np.einsum('j,ikl->ijkl', Kbar_i[i], K_ijkbar[i])
+                                                    + np.einsum('l,ikj->ijkl', Kbar_i[i], K_ijkbar[i])
+                                                    + np.einsum('i,kjl->ijkl', K_i[i], Kbar_jlkbar[i])
+                                                    + np.einsum('k,ijl->ijkl', K_i[i], Kbar_jlkbar[i]))
+                                 + 2 * ((K_0[i])**3) * (np.einsum('i,j,kl->ijkl', K_i[i], Kbar_i[i], K_ijbar[i])
+                                                        +np.einsum('ij,k,l->ijkl', K_ijbar[i], K_i[i], Kbar_i[i])
+                                                        +np.einsum('j,k,il->ijkl', Kbar_i[i], K_i[i], K_ijbar[i])
+                                                        +np.einsum('i,kj,l->ijkl', K_i[i],K_ijbar[i], Kbar_i[i])
+                                                        +np.einsum('i,k,jl->ijkl', K_i[i], K_i[i], np.conj(K_ij[i]))
+                                                        +np.einsum('j,ik,l->ijkl', Kbar_i[i], K_ij[i], Kbar_i[i]))
+                                 - 6 * ((K_0[i])**4) * np.einsum('i,j,k,l->ijkl', K_i[i], Kbar_i[i], K_i[i], Kbar_i[i]))
+
+        ddmoP4.append(ddg)
+
+    return ddmoP4
+
+P4_ddg = double_deriv_metric_p4(K_0_list, K_ikjbarlbar_list, K_ijbar_list, K_ij_list, Kbar_i_list, K_ijkbar_list, K_i_list, Kbar_jlkbar_list)
+
+
+
+def CY_RF_derivative_metric_builder(dJ, g, J, P4dg):
+    rfdmonCY = []
+
+    for i in range(N_t):
+        dg = np.einsum('iak,km,bm->iab', dJ[i], g[i], np.conj(J[i])) + np.einsum('ak,ikm,bm->iab', J[i], P4dg[i], np.conj(J[i]))
+        rfdmonCY.append(dg)
+    return rfdmonCY
+CYRF_dg = CY_RF_derivative_metric_builder(deriv_Jack, P4_Ricci_flat_metrics_list, Jack, P4_dg)
+
+
+
+def CY_RF_conj_derivative_metric_builder(J, g, dg, dJ):
+    rfcdmonCY = []
+
+    for i in range(N_t):
+        cdg = (np.einsum('ak,ikm,bm->iab', J[i], np.conj(dg[i]), np.conj(J[i]))
+               + np.einsum('ak,km,ibm->iab', J[i], g[i], np.conj(dJ[i])))
+        rfcdmonCY.append(cdg)
+    return rfcdmonCY
+
+CYRF_cdg = CY_RF_conj_derivative_metric_builder(Jack, P4_Ricci_flat_metrics_list, P4_dg, deriv_Jack)
+
+
+
+
+
+def CY_RF_double_derivative_metric_builder(dJ, dg, J, g, ddg):
+    rfddmonCY = []
+
+    for i in range(N_t):
+        ddg_CY = ( np.einsum('iak,jkm,bm->ijab', dJ[i], np.conj(dg[i]), np.conj(J[i]))
+               + np.einsum('ak,ijkm,bm->ijab', J[i], ddg[i], np.conj(J[i]))
+                + np.einsum('iak,km,jbm->ijab', dJ[i], g[i], np.conj(dJ[i]))
+                  + np.einsum('ak,ikm,jbm->ijab', J[i], dg[i], np.conj(dJ[i])) )
+        rfddmonCY.append(ddg_CY)
+    return rfddmonCY
+
+CYRF_ddg = CY_RF_double_derivative_metric_builder(deriv_Jack, P4_dg, Jack, P4_Ricci_flat_metrics_list, P4_ddg)
+
+
+
+def Ricci_tensor_P4_wrt_CY_metrics(g, dg, cdg, ddg):
+    R_ij_wrt_CYg_list =[]
+
+    for i in range(N_t):
+        R_ijbar = ( np.einsum('nm,ims,sp,jpn->ij', np.linalg.inv(g[i]), dg[i], np.linalg.inv(g[i]), cdg[i])
+                     + np.einsum('nm,ijmn->ij', np.linalg.inv(g[i]), ddg[i]))
+        R_ij_wrt_CYg_list.append(R_ijbar)
+    return R_ij_wrt_CYg_list
+
+R_ij_wrt_CYg = Ricci_tensor_P4_wrt_CY_metrics(CY_Ricci_flat_metrics_list, CYRF_dg, CYRF_cdg, CYRF_ddg)
+
+
+
+def CY_Ricci_tensor(J, R_ij):
+    R_abbar_list = []
+
+    for i in range(N_t):
+        R_abbar = np.einsum('ai,ij,bj->ab', J[i], R_ij[i], np.conj(J[i]))
+        R_abbar_list.append(R_abbar)
+    return R_abbar_list
+
+CY_R_abbar = CY_Ricci_tensor(Jack, R_ij_wrt_CYg)
+
+print('Ricci tensor on CY',CY_R_abbar[0])
+
+
+
+def CY_Ricci_scalar(g, R_abbar):
+    R_list = []
+
+    for i in range(N_t):
+        R = np.einsum('mn,mn', np.linalg.inv(g[i]).T, R_abbar[i])
+        R_list.append(R)
+    return R_list
+
+CY_R = CY_Ricci_scalar(CY_Ricci_flat_metrics_list, CY_R_abbar)
+
+print('Ricci scalar on CY',CY_R[0])
+
+
+
+def Ricci_error(detg, OmOm, R, w_M):
+
+    R = ( ((EVK) ** (1/3)) / (N_t * EVCY) ) * ( np.sum([ ( (detg[i] / OmOm[i]) * abs(R[i]) * w_M[i] ) for i in range(N_t)]) )
+
+    return R
+
+R_error = Ricci_error(det_CY_metric, OmOmbar_list, CY_R, w_M_list)
+
+print(R_error)
+
+
+def Manush_error():
+
+    M = ((EVCY/EVK) ** (4/3)) * R_error
+
+    return M
+
+Manush = Manush_error()
+
+print(Manush)
+
+
+
+
+
+
+
+
+
+
 
 
 
