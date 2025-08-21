@@ -781,7 +781,7 @@ print(R_error)
 
 def Manush_error():
 
-    M = ((EVCY/EVK) ** (4/3)) * R_error
+    M = ((EVCY/EVK) ** (2/3)) * ((1/EVCY) ** (1/3)) * R_error
 
     return M
 
