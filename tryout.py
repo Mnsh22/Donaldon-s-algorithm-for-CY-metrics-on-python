@@ -41,9 +41,9 @@ def find_quintic_roots():
 
     polynomial = np.zeros(6, dtype=complex)  # Vector each containing a term in the expansion of the polynomial
     # cause np.roots works with vectors only.
-
-    for k in range(6):
-        polynomial[k] = sum([math.comb(5, k) * (p[i] ** (5 - k)) * (q[i] ** k) for i in range(5)])
+    for i in range(5):
+        for k in range(6):
+            polynomial[k] += math.comb(5, k) * (p[i] ** (5 - k)) * (q[i] ** k)
 
         # Now that coeff is fully built, solve for roots
     roots = np.roots(polynomial[::-1])  # np.roots wants highest degree first
@@ -68,19 +68,21 @@ def generate_quintic_points(p_M_points):
 
     return np.array(points)  # shape: (n_points, 5)
 
-sample = generate_quintic_points(p_M_points=50250) ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
+sample = generate_quintic_points(p_M_points=62250) ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
 
-Error_sample = generate_quintic_points(p_M_points=40000)
+Error_sample = generate_quintic_points(p_M_points=56500)
 
 N_t = len(Error_sample)
 
 n = 5  # number of coordinates we are considering
-K = 1  # order polynomial we are considering
+K = 3  # order polynomial we are considering
 
 #def N_k_builder():
-N_k = math.comb(n + K - 1, K) #we looking at k less than 5 anyways, (remember that for k>5 need to remove dof)
-
-#print(N_k)
+if K<5:
+    N_k = math.comb(n + K - 1, K) #we looking at k less than 5 anyways, (remember that for k>5 need to remove dof)
+else:
+    N_k = math.comb(n + K - 1, K) - math.comb(K - 1, K - 5)
+print(N_k)
 
 
 
@@ -173,7 +175,7 @@ def extra_coordinates_fixing(coord, ext):
         s = sum([ coord[i][k]**5 for k in not_b_indices ]) # NB: Need to equal this to a number or Int problem
         coord[i][b] = (-s)**(1/5)
 
-    return coord_fix_fn
+    return coord
 
 coordinates_for_every_p_M = extra_coordinates_fixing(coord_fix_fn, extras)
 
@@ -269,10 +271,10 @@ def P4_FS_metric_builder(cfepm, fix):
         for i in range(5):
             for j in range(5):
                 if i == j:
-                    g[i][j] = (1/np.pi) * ( (1/norm) - ((z[i]*np.conj(z[j])) /((norm)**2) ) )
+                    g[i, j] = (1/np.pi) * ( (1/norm) - ((z[i]*np.conj(z[j])) /((norm)**2) ) )
 
                 else:
-                    g[i][j] = (-(1/np.pi)) * ( (z[j]*np.conj(z[i])) / ((norm)**2) )
+                    g[i, j] = (-(1/np.pi)) * ( (z[j]*np.conj(z[i])) / ((norm)**2) )
 
         container_of_metrics.append(g)
 
@@ -332,7 +334,7 @@ def weight_list(cont, detlist, sample):
     weight_list = []
 
     for i in range(len(sample)):
-        w = 1 / ( 25 * ((abs(cont[i])) ** 8) * (detlist[i]) )
+        w = 1 / ( 25 * ((abs(cont[i])) ** 8) * (detlist[i]) * 6)
         weight_list.append(w)
     return weight_list
 
@@ -374,6 +376,25 @@ every_single_monomial_combination_tuple = Monomial_list_coord_value(K, coordinat
 
 
 
+def Error_Monomial_list_coord_value(k, cfepm, sample):
+
+    Monomial_list = []
+
+    for i in range(len(sample)):
+        z = cfepm[i]
+        variables = [ z[0], z[1], z[2], z[3], z[4] ]
+        combo = combinations_with_replacement(variables, k)
+        gh = list(combo)
+        Monomial_list.append(gh) #append each list of N_k combinations
+
+    return Monomial_list
+
+Error_every_single_monomial_combination_tuple = Monomial_list_coord_value(K, Error_coordinates_for_every_p_M, Error_sample) #set the K you want here too
+#print(every_single_monomial_combination_tuple[2])
+
+
+
+
 # For the second factor we need to create first a list containing matrix that should contain s_alpha s_betabar at
 # each p_M. Then construct the sum function timing by the weight given by 1/(25...determinant_list[i]).
 # Starting by the numerator
@@ -391,9 +412,22 @@ def section_vector_list(esmct, sample):
 svl = section_vector_list(every_single_monomial_combination_tuple, sample)
 
 
+def Error_section_vector_list(esmct, Error_sample):
+    section_vec_list = []
+    for i in range(len(Error_sample)):
+        x = esmct[i] # list of N_k tuples
+        s = np.zeros(N_k, dtype=complex)
+        for j in range(N_k):
+            s[j] = np.prod(x[j]) # product of tuple values
+        section_vec_list.append(s)
+    return section_vec_list
+
+Error_svl = section_vector_list(Error_every_single_monomial_combination_tuple, Error_sample)
+
+
 def T_map_iteration(h, ff, s, wml, n_iter, sample):
     for _ in range(n_iter):
-        T_h = ff * (1/len(sample)) * sum([ ( ((np.einsum('m,n->mn', s[i], np.conj(s[i]))) * wml[i]) / (np.einsum('ab,a,b', h, s[i], np.conj(s[i]))) ) for i in range(len(sample)) ])
+        T_h = ff * (1/len(sample)) * sum( ( ((np.einsum('m,n->mn', s[i], np.conj(s[i]))) * wml[i]) / (np.einsum('ab,a,b', h, s[i], np.conj(s[i]))) ) for i in range(len(sample)) )
 
         #convergence = (1/len(sample)) * sum((np.einsum('ab,a,b', np.linalg.inv(T_h).T, s[i], np.conj(s[i]))/np.einsum('ab,a,b', h, s[i], np.conj(s[i]))) for i in range(len(sample)))
         #convergence1 = np.einsum('ab,ba', T_h.T,h)
@@ -509,7 +543,7 @@ def K_0_builder(h, s):
         k_0_list.append(k_0)
     return k_0_list
 
-K_0_list = K_0_builder(h_new, svl)
+K_0_list = K_0_builder(h_new, Error_svl)
 
 
 
@@ -523,7 +557,7 @@ def K_i_builder(h, s, ds):   # NBBBBBB found a way of storing s_alphas as a list
 
     return k_i_list
 
-K_i_list = K_i_builder(h_new, svl, ds_list)
+K_i_list = K_i_builder(h_new, Error_svl, ds_list)
 
 
 
@@ -535,7 +569,7 @@ def Kbar_i_builder(h, s, ds):
         Kbar_i_list.append(kbar_i)
     return Kbar_i_list
 
-Kbar_i_list = Kbar_i_builder(h_new, svl, ds_list)
+Kbar_i_list = Kbar_i_builder(h_new, Error_svl, ds_list)
 
 
 
@@ -572,7 +606,7 @@ def CY_RF_metric_builder(J, g_tilda):
         rfmoCY.append(g)
     return rfmoCY
 
-CY_Ricci_flat_metrics_list = CY_RF_metric_builder(Jack, P4_Ricci_flat_metrics_list)
+CY_Ricci_flat_metrics_list = CY_RF_metric_builder(Error_Jack, P4_Ricci_flat_metrics_list)
 
 print('RF CY metric', CY_Ricci_flat_metrics_list[0])
 
@@ -594,7 +628,7 @@ det_CY_metric = determinants_CY_metric(CY_Ricci_flat_metrics_list, N_t)
 
 
 def Error_Vol_K_builder(det, OmOmbar, w_M, N_t):
-    Vol_K = (1/N_t) * np.sum([ (( det[i] / OmOmbar[i] ) * w_M[i]) for i in range(N_t)])
+    Vol_K = (1/N_t) * sum( ((6 * det[i] / OmOmbar[i] ) * w_M[i]) for i in range(N_t))
     return Vol_K
 
 EVK = Error_Vol_K_builder(det_CY_metric, OmOmbar_list, Error_w_M_list, N_t)
@@ -606,7 +640,7 @@ print('volumes ratio', EVK/EVCY)
 
 
 def Error_sigma(EVK, EVCY, det, OmOmbar):
-    sigma = (1/(N_t * EVCY)) * (np.sum([ (abs(1 - ( (det[i]/EVK) / (OmOmbar[i]/EVCY) )) * Error_w_M_list[i]) for i in range(N_t) ]))
+    sigma = (1/(N_t * EVCY)) * (sum( (abs(1 - ( ( 6 * det[i]/EVK) / (OmOmbar[i]/EVCY) )) * Error_w_M_list[i]) for i in range(N_t) ))
     return sigma
 
 sigma = Error_sigma(EVK, EVCY, det_CY_metric, OmOmbar_list)
@@ -627,7 +661,7 @@ def K_ij_builder(h, dds, s):
         K_ij_list.append(K_ij)
     return K_ij_list
 
-K_ij_list = K_ij_builder(h_new, dds_list, svl)
+K_ij_list = K_ij_builder(h_new, dds_list, Error_svl)
 
 
 
@@ -723,7 +757,7 @@ def CY_RF_derivative_metric_builder(dJ, g, J, P4dg):
         dg = np.einsum('iak,km,bm->iab', dJ[i], g[i], np.conj(J[i])) + np.einsum('ak,ikm,bm->iab', J[i], P4dg[i], np.conj(J[i]))
         rfdmonCY.append(dg)
     return rfdmonCY
-CYRF_dg = CY_RF_derivative_metric_builder(deriv_Jack, P4_Ricci_flat_metrics_list, Jack, P4_dg)
+CYRF_dg = CY_RF_derivative_metric_builder(Error_deriv_Jack, P4_Ricci_flat_metrics_list, Error_Jack, P4_dg)
 
 
 
@@ -736,7 +770,7 @@ def CY_RF_conj_derivative_metric_builder(J, g, dg, dJ):
         rfcdmonCY.append(cdg)
     return rfcdmonCY
 
-CYRF_cdg = CY_RF_conj_derivative_metric_builder(Jack, P4_Ricci_flat_metrics_list, P4_dg, deriv_Jack)
+CYRF_cdg = CY_RF_conj_derivative_metric_builder(Error_Jack, P4_Ricci_flat_metrics_list, P4_dg, Error_deriv_Jack)
 
 
 
@@ -753,7 +787,7 @@ def CY_RF_double_derivative_metric_builder(dJ, dg, J, g, ddg):
         rfddmonCY.append(ddg_CY)
     return rfddmonCY
 
-CYRF_ddg = CY_RF_double_derivative_metric_builder(deriv_Jack, P4_dg, Jack, P4_Ricci_flat_metrics_list, P4_ddg)
+CYRF_ddg = CY_RF_double_derivative_metric_builder(Error_deriv_Jack, P4_dg, Error_Jack, P4_Ricci_flat_metrics_list, P4_ddg)
 
 
 
@@ -778,7 +812,7 @@ def CY_Ricci_tensor(J, R_ij):
         R_abbar_list.append(R_abbar)
     return R_abbar_list
 
-CY_R_abbar = CY_Ricci_tensor(Jack, R_ij_wrt_CYg)
+CY_R_abbar = CY_Ricci_tensor(Error_Jack, R_ij_wrt_CYg)
 
 print('Ricci tensor on CY',CY_R_abbar[0])
 
@@ -794,13 +828,13 @@ def CY_Ricci_scalar(g, R_abbar):
 
 CY_R = CY_Ricci_scalar(CY_Ricci_flat_metrics_list, CY_R_abbar)
 
-print('Ricci scalar on CY',CY_R[0])
+print('Ricci scalar on CY', CY_R[0])
 
 
 
 def Ricci_error(detg, OmOm, R, w_M):
 
-    R = ( ((EVK) ** (1/3)) / (N_t * EVCY) ) * ( np.sum([ ( (detg[i] / OmOm[i]) * abs(R[i]) * w_M[i] ) for i in range(N_t)]) )
+    R = ( ((EVK) ** (1/3)) / (N_t * EVCY) ) * ( sum( ( ( 6 * detg[i] / OmOm[i]) * abs(R[i]) * w_M[i] ) for i in range(N_t)) )
 
     return R
 
@@ -809,18 +843,24 @@ R_error = Ricci_error(det_CY_metric, OmOmbar_list, CY_R, Error_w_M_list)
 print(R_error)
 
 
-def Manush_error():
 
-    M = ((EVCY/EVK) ** (2/3)) * ((1/EVCY) ** (1/3)) * R_error
+def Matematica_sigma(EVK, det, OmOmbar):
+    sig = (1/N_t) * (sum( (abs(1 - ((6 * det[i]/OmOmbar[i]) * (w_M_list[i]/EVK) )) ) for i in range(N_t)) )
+    return sig
 
-    return M
+Mat_sigma = Matematica_sigma(EVK, det_CY_metric, OmOmbar_list)
 
-Manush = Manush_error()
+print('Mat sigma')
+print(Mat_sigma)
 
-print(Manush)
+def Matematica_Ricci_err(detg, OmOmbar, R, w_M):
+    R = (1 / N_t) * (sum( (6 * detg[i] / OmOmbar[i]) * abs(R[i]) * w_M[i] for i in range(N_t)) / EVK)
+    return R
 
+Mat_R = Matematica_Ricci_err(det_CY_metric, OmOmbar_list, CY_R, Error_w_M_list)
 
-
+print('Mat R')
+print(Mat_R)
 
 
 

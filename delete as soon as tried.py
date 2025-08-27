@@ -71,7 +71,7 @@ def generate_quintic_points(p_M_points):
 sample = generate_quintic_points(p_M_points=52250) ### PUT DESIRED VALUE FOR N_p !!!!!!!!!!!!!
 
 n = 5  # number of coordinates we are considering
-K = 2 # order polynomial we are considering
+K = 1 # order polynomial we are considering
 
 #def N_k_builder():
 N_k = math.comb(n + K - 1, K) #we looking at k less than 5 anyways, (remember that for k>5 need to remove dof)
@@ -413,6 +413,10 @@ print('s', svl[0])
 # Np = 1000
 # k = 1
 # Iteration times = 20
+
+h_new = h0
+
+
 
 def error_vol_CY(N_t, w_M_list):
     # Just like above here pick the desired N_k value over which the T-map should operate.
